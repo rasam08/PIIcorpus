@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "piicorpus"
+version = "0.1.0"
+description = "Deterministic synthetic contextual-PII corpus generation and structural-independence auditing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "rasam08" }]
+keywords = ["synthetic-data", "pii", "corpus", "privacy", "nlp"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.2,<2",
+  "hypothesis>=6.125,<7",
+  "mypy>=1.14,<2",
+  "pytest>=8.3,<9",
+  "ruff>=0.9,<1",
+]
+
+[project.scripts]
+piicorpus = "piicorpus.cli:main"
+
+[project.urls]
+Documentation = "https://github.com/rasam08/PIIcorpus#readme"
+Issues = "https://github.com/rasam08/PIIcorpus/issues"
+Security = "https://github.com/rasam08/PIIcorpus/security/advisories/new"
+Source = "https://github.com/rasam08/PIIcorpus"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/piicorpus"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.gitattributes",
+  "/.github",
+  "/.gitignore",
+  "/CHANGELOG.md",
+  "/CITATION.cff",
+  "/CODE_OF_CONDUCT.md",
+  "/CONTRIBUTING.md",
+  "/DATA_LICENSE",
+  "/LICENSE",
+  "/NOTICE",
+  "/README.md",
+  "/SECURITY.md",
+  "/THIRD_PARTY_NOTICES.md",
+  "/configs",
+  "/docs",
+  "/examples",
+  "/pyproject.toml",
+  "/requirements-dev.lock",
+  "/src",
+  "/tests",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["piicorpus"]
+mypy_path = "src"

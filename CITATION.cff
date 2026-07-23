@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use PIIcorpus, cite this software release."
+title: "PIIcorpus"
+type: software
+authors:
+  - alias: "rasam08"
+version: 0.1.0
+date-released: "2026-07-22"
+license: Apache-2.0
+repository-code: "https://github.com/rasam08/PIIcorpus"
+abstract: >-
+  A detector-neutral Python tool for deterministic synthetic contextual-PII corpus generation and
+  structural-independence auditing.

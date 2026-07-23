@@ -1,0 +1,145 @@
+{
+  "configuration_digest": "b2271535fb512446d1f75919e64fe5cee8305a36951b0609c6b7aa68b7f1f24e",
+  "counts": {
+    "eval": {
+      "families": {
+        "adjacent_non_sensitive_values": 9,
+        "cue_free_examples": 12,
+        "cue_shape_conflicts": 12,
+        "documentation_meta_references": 9,
+        "hard_negative_near_misses": 10,
+        "mixed_entity_document": 12,
+        "narrative_prose": 13,
+        "negation_and_hypothetical": 10,
+        "ocr_like_noise": 12,
+        "placeholders_and_templates": 10,
+        "spoken_transcript": 12,
+        "structural_tabular": 12,
+        "unrelated_identifier_shapes": 10
+      },
+      "hard_negative_kinds": {
+        "adjacent_non_sensitive_values": 9,
+        "documentation_meta_references": 9,
+        "hard_negative_near_misses": 10,
+        "negation_and_hypothetical": 10,
+        "placeholders_and_templates": 10,
+        "unrelated_identifier_shapes": 10
+      },
+      "labels": {
+        "BIRTH_DATE": 21,
+        "DRIVER_CREDENTIAL_ID": 25,
+        "PATIENT_RECORD_ID": 26,
+        "TRAVEL_DOCUMENT_ID": 25
+      },
+      "negatives": 58,
+      "organizations": 3,
+      "personas": 6,
+      "positives": 85,
+      "records": 143,
+      "templates": 26
+    },
+    "holdout": {
+      "families": {
+        "adjacent_non_sensitive_values": 7,
+        "cue_free_examples": 10,
+        "cue_shape_conflicts": 10,
+        "documentation_meta_references": 8,
+        "hard_negative_near_misses": 8,
+        "mixed_entity_document": 10,
+        "narrative_prose": 10,
+        "negation_and_hypothetical": 8,
+        "ocr_like_noise": 10,
+        "placeholders_and_templates": 8,
+        "spoken_transcript": 10,
+        "structural_tabular": 10,
+        "unrelated_identifier_shapes": 8
+      },
+      "hard_negative_kinds": {
+        "adjacent_non_sensitive_values": 7,
+        "documentation_meta_references": 8,
+        "hard_negative_near_misses": 8,
+        "negation_and_hypothetical": 8,
+        "placeholders_and_templates": 8,
+        "unrelated_identifier_shapes": 8
+      },
+      "labels": {
+        "BIRTH_DATE": 14,
+        "DRIVER_CREDENTIAL_ID": 18,
+        "PATIENT_RECORD_ID": 24,
+        "TRAVEL_DOCUMENT_ID": 24
+      },
+      "negatives": 47,
+      "organizations": 3,
+      "personas": 6,
+      "positives": 70,
+      "records": 117,
+      "templates": 26
+    },
+    "train": {
+      "families": {
+        "adjacent_non_sensitive_values": 12,
+        "cue_free_examples": 15,
+        "cue_shape_conflicts": 15,
+        "documentation_meta_references": 12,
+        "hard_negative_near_misses": 13,
+        "mixed_entity_document": 15,
+        "narrative_prose": 16,
+        "negation_and_hypothetical": 12,
+        "ocr_like_noise": 16,
+        "placeholders_and_templates": 12,
+        "spoken_transcript": 16,
+        "structural_tabular": 16,
+        "unrelated_identifier_shapes": 12
+      },
+      "hard_negative_kinds": {
+        "adjacent_non_sensitive_values": 12,
+        "documentation_meta_references": 12,
+        "hard_negative_near_misses": 13,
+        "negation_and_hypothetical": 12,
+        "placeholders_and_templates": 12,
+        "unrelated_identifier_shapes": 12
+      },
+      "labels": {
+        "BIRTH_DATE": 26,
+        "DRIVER_CREDENTIAL_ID": 33,
+        "PATIENT_RECORD_ID": 32,
+        "TRAVEL_DOCUMENT_ID": 33
+      },
+      "negatives": 73,
+      "organizations": 3,
+      "personas": 6,
+      "positives": 109,
+      "records": 182,
+      "templates": 26
+    }
+  },
+  "determinism": {
+    "json_serialization": "UTF-8, sorted keys, compact JSONL, LF newlines",
+    "ordering": "split order and configured family order are stable",
+    "randomness": "SHA-256-namespaced pseudorandom streams"
+  },
+  "files": {
+    "corpus-config.json": {
+      "bytes": 4791,
+      "sha256": "0e5359ee6a5895dd5be579717bcaef14ecb8b968bda9885dd548a9a63d4de656"
+    },
+    "splits/eval.jsonl": {
+      "bytes": 116047,
+      "sha256": "cb73020346511aae6c7579283c260ad83dd9776af0008527805b9985f1d10177"
+    },
+    "splits/holdout.jsonl": {
+      "bytes": 95388,
+      "sha256": "dbbe187535936d0f6c4f5b38adff83b1056d795b63851681a0727da366e11486"
+    },
+    "splits/train.jsonl": {
+      "bytes": 146307,
+      "sha256": "1bb4a872ea5d1b4c946a09b1890b63cdfa0f04eafc142ee5d4dd6228e87a5079"
+    }
+  },
+  "generated_data_license": "CC0-1.0",
+  "generator_version": "1.1.0",
+  "project": "PIIcorpus",
+  "schema_version": "piicorpus.manifest/v1",
+  "seed": 314159,
+  "synthetic_holdout_limitation": "A holdout produced by the same generator is useful for regression testing but is not an independent generalization test."
+}

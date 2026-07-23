@@ -1,0 +1,207 @@
+{
+  "audit": {
+    "max_family_share": 0.12,
+    "max_kind_marker_share": 0.98,
+    "max_label_exclusive_cue_fraction": 0.45,
+    "max_morphology_label_share": 0.75,
+    "max_template_share": 0.05,
+    "minimum_hard_negative_kinds": 6,
+    "minimum_marker_kind_coverage": 0.5,
+    "minimum_marker_support": 20,
+    "minimum_value_entropy_bits": 6.0
+  },
+  "diversity": {
+    "minimum_organizations_per_split": 3,
+    "minimum_personas_per_family": 3,
+    "minimum_templates_per_family": 2
+  },
+  "families": [
+    {
+      "labels": [],
+      "name": "narrative_prose",
+      "plugin": "narrative",
+      "role": "positive",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "structural_tabular",
+      "plugin": "structural",
+      "role": "positive",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "ocr_like_noise",
+      "plugin": "ocr_noise",
+      "role": "positive",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "spoken_transcript",
+      "plugin": "spoken",
+      "role": "positive",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "mixed_entity_document",
+      "plugin": "mixed_entity",
+      "role": "positive",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "cue_free_examples",
+      "plugin": "cue_free",
+      "role": "positive",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [
+        "PATIENT_RECORD_ID",
+        "TRAVEL_DOCUMENT_ID",
+        "DRIVER_CREDENTIAL_ID"
+      ],
+      "name": "cue_shape_conflicts",
+      "plugin": "cue_shape_conflict",
+      "role": "positive",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "hard_negative_near_misses",
+      "plugin": "near_miss",
+      "role": "hard_negative",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "placeholders_and_templates",
+      "plugin": "placeholder",
+      "role": "hard_negative",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "negation_and_hypothetical",
+      "plugin": "negation",
+      "role": "hard_negative",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "unrelated_identifier_shapes",
+      "plugin": "unrelated_shape",
+      "role": "hard_negative",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "documentation_meta_references",
+      "plugin": "documentation_meta",
+      "role": "hard_negative",
+      "templates": [],
+      "weight": 1
+    },
+    {
+      "labels": [],
+      "name": "adjacent_non_sensitive_values",
+      "plugin": "adjacent_value",
+      "role": "hard_negative",
+      "templates": [],
+      "weight": 1
+    }
+  ],
+  "generated_data_license": "CC0-1.0",
+  "labels": [
+    {
+      "cues": [
+        "identity value",
+        "record reference",
+        "patient record identifier"
+      ],
+      "morphology_group": "fictional_identifier",
+      "name": "PATIENT_RECORD_ID",
+      "options": {
+        "preferred_shape": "synthetic_alpha_five",
+        "realism": "intentionally_fictional"
+      },
+      "plugin": "fictional_identifier"
+    },
+    {
+      "cues": [
+        "identity value",
+        "record reference",
+        "travel document identifier"
+      ],
+      "morphology_group": "fictional_identifier",
+      "name": "TRAVEL_DOCUMENT_ID",
+      "options": {
+        "preferred_shape": "synthetic_two_alpha_four",
+        "realism": "intentionally_fictional"
+      },
+      "plugin": "fictional_identifier"
+    },
+    {
+      "cues": [
+        "identity value",
+        "record reference",
+        "driver credential identifier"
+      ],
+      "morphology_group": "fictional_identifier",
+      "name": "DRIVER_CREDENTIAL_ID",
+      "options": {
+        "preferred_shape": "synthetic_segmented",
+        "realism": "intentionally_fictional"
+      },
+      "plugin": "fictional_identifier"
+    },
+    {
+      "cues": [
+        "identity value",
+        "record reference",
+        "synthetic birth date"
+      ],
+      "morphology_group": "calendar",
+      "name": "BIRTH_DATE",
+      "options": {
+        "realism": "synthetic_calendar_value"
+      },
+      "plugin": "synthetic_date"
+    }
+  ],
+  "minimum_hard_negative_ratio": 0.35,
+  "positive_ratio": 0.6,
+  "project_name": "PIIcorpus fictional contextual-PII demo",
+  "safety": {
+    "allowed_value_prefixes": [
+      "SYN-",
+      "synthetic "
+    ],
+    "forbidden_terms": [],
+    "reserved_email_domains": [
+      "example.com",
+      "example.org",
+      "example.net"
+    ]
+  },
+  "seed": 314159,
+  "splits": {
+    "eval": 143,
+    "holdout": 117,
+    "train": 182
+  }
+}

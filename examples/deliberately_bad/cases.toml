@@ -1,0 +1,77 @@
+# Each case is synthetic and is built from a freshly generated demo corpus.
+# The expected_risk field is the audit result that must be FAIL.
+
+[cases.value_contamination]
+expected_risk = "cross_split_value_contamination"
+
+[cases.persona_contamination]
+expected_risk = "persona_contamination"
+
+[cases.template_contamination]
+expected_risk = "template_contamination"
+
+[cases.skeleton_contamination]
+expected_risk = "skeleton_contamination"
+
+[cases.duplicate_body]
+expected_risk = "duplicate_or_near_duplicate_bodies"
+
+[cases.exclusive_morphology]
+expected_risk = "label_exclusive_morphology"
+
+[cases.morphology_dominance]
+expected_risk = "morphology_label_dominance"
+
+[cases.cue_shortcut]
+expected_risk = "cue_label_shortcuts"
+
+[cases.train_only_cue_shortcut]
+expected_risk = "cue_label_shortcuts"
+
+[cases.label_marker_shortcut]
+expected_risk = "generator_fingerprint"
+
+[cases.unigram_label_marker]
+expected_risk = "generator_fingerprint"
+
+[cases.bigram_label_marker]
+expected_risk = "generator_fingerprint"
+
+[cases.trigram_label_marker]
+expected_risk = "generator_fingerprint"
+
+[cases.missing_cue_free]
+expected_risk = "cue_free_coverage"
+
+[cases.missing_contrastive]
+expected_risk = "cue_shape_contrastive_coverage"
+
+[cases.thin_templates]
+expected_risk = "template_diversity"
+
+[cases.thin_personas]
+expected_risk = "persona_diversity"
+
+[cases.weak_hard_negatives]
+expected_risk = "hard_negative_coverage"
+
+[cases.family_imbalance]
+expected_risk = "family_imbalance"
+
+[cases.low_entropy]
+expected_risk = "low_value_entropy"
+
+[cases.malformed_spans]
+expected_risk = "malformed_or_unbalanced_spans"
+
+[cases.unsafe_value]
+expected_risk = "unsafe_generated_value_patterns"
+
+[cases.generator_fingerprint]
+expected_risk = "generator_fingerprint"
+
+[cases.phantom_metadata]
+expected_risk = "corpus_integrity"
+
+[cases.stale_case_id]
+expected_risk = "corpus_integrity"
