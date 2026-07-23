@@ -11,15 +11,14 @@ from pathlib import Path
 from typing import Any
 
 from .annotation import parse_marked
-from .config import CorpusConfig, FamilyConfig, LabelConfig
+from .config import SPLIT_ORDER, CorpusConfig, FamilyConfig, LabelConfig, split_partition
 from .identity import derive_case_id
 from .manifest import write_corpus
 from .models import CueLink, Record
-from .morphology import shape_signature
+from .morphology import register_shape, shape_signature
 from .skeletons import get_family
 
-GENERATOR_VERSION = "1.1.0"
-SPLIT_ORDER = ("train", "eval", "holdout")
+GENERATOR_VERSION = "2.0.0"
 
 ValueGenerator = Callable[[random.Random, LabelConfig, str, int], str]
 _VALUE_PLUGINS: dict[str, ValueGenerator] = {}
@@ -35,16 +34,18 @@ def registered_value_plugins() -> tuple[str, ...]:
     return tuple(sorted(_VALUE_PLUGINS))
 
 
-_ALPHABETS = {
-    "train": "ABCDEFGH",
-    "eval": "JKLMNPQR",
-    "holdout": "STUVWXYZ",
-}
-_YEAR_RANGES = {
-    "train": (1971, 1986),
-    "eval": (1987, 2002),
-    "holdout": (2003, 2018),
-}
+# I and O are excluded as visually ambiguous. Letters and years are interleaved
+# across splits to avoid contiguous-range shift while staying disjoint.
+_LETTER_POOL = tuple("ABCDEFGHJKLMNPQRSTUVWXYZ")
+_YEAR_POOL = tuple(str(year) for year in range(1971, 2019))
+
+
+def _split_letters(split: str) -> str:
+    return "".join(split_partition(_LETTER_POOL, split))
+
+
+def _split_years(split: str) -> tuple[int, ...]:
+    return tuple(int(year) for year in split_partition(_YEAR_POOL, split))
 
 
 def _digits(rng: random.Random, count: int) -> str:
@@ -55,7 +56,7 @@ def _digits(rng: random.Random, count: int) -> str:
 
 
 def _fictional_identifier(rng: random.Random, _label: LabelConfig, split: str, index: int) -> str:
-    alphabet = _ALPHABETS[split]
+    alphabet = _split_letters(split)
     shape_names = (
         "synthetic_alpha_five",
         "synthetic_two_alpha_four",
@@ -71,8 +72,7 @@ def _fictional_identifier(rng: random.Random, _label: LabelConfig, split: str, i
 
 
 def _synthetic_date(rng: random.Random, _label: LabelConfig, split: str, _index: int) -> str:
-    first, last = _YEAR_RANGES[split]
-    year = rng.randint(first, last)
+    year = rng.choice(_split_years(split))
     month = rng.randint(1, 12)
     day = rng.randint(1, 28)
     return f"SYN-DATE-{year:04d}-{month:02d}-{day:02d}"
@@ -81,17 +81,13 @@ def _synthetic_date(rng: random.Random, _label: LabelConfig, split: str, _index:
 register_value_plugin("fictional_identifier", _fictional_identifier)
 register_value_plugin("synthetic_date", _synthetic_date)
 
-
-_PERSONAS = {
-    "train": ("Ari Solen", "Bela Orin", "Cato Mire", "Dara Venn", "Eli Taren", "Fia Corren"),
-    "eval": ("Galen Iver", "Hana Pell", "Ivo Saret", "Jora Wyn", "Kelan Dore", "Luma Quill"),
-    "holdout": ("Mira Fen", "Nico Vale", "Ona Rell", "Pax Arden", "Rina Cove", "Soren Lark"),
-}
-_ORGANIZATIONS = {
-    "train": ("Juniper Test Clinic", "Cobalt Demo Center", "Lattice Fictional Care"),
-    "eval": ("Marigold Example Practice", "Nimbus Sample Office", "Orchard Fictional Health"),
-    "holdout": ("Pebble Demo Institute", "Quarry Sample Care", "Rookery Fictional Group"),
-}
+# Built-in shapes; specific patterns register before the noisy catch-all.
+register_shape("spoken_synthetic", lambda value: value.casefold().strip().startswith("synthetic "))
+register_shape("synthetic_calendar", r"SYN-DATE-\d{4}-\d{2}-\d{2}")
+register_shape("synthetic_alpha_five", r"SYN-ID-[A-Z]\d{5}")
+register_shape("synthetic_two_alpha_four", r"SYN-ID-[A-Z]{2}\d{4}")
+register_shape("synthetic_segmented", r"SYN-ID-[A-Z]{3}-\d{3}")
+register_shape("synthetic_noisy", lambda value: value.startswith("SYN-ID-"))
 
 
 def _rng(config: CorpusConfig, *parts: object) -> random.Random:
@@ -171,14 +167,32 @@ def _value(
     raise ValueError(f"could not generate a unique value for {label.name}")
 
 
-def _negative_value(config: CorpusConfig, split: str, family: str, index: int) -> str:
-    rng = _rng(config, split, family, index, "negative")
-    prefix = {
-        "near_miss": "SYN-TICKET",
-        "unrelated_shape": "SYN-ASSET",
-        "adjacent_value": "SYN-ROW",
-    }.get(family, "SYN-REF")
-    return f"{prefix}-{rng.choice(_ALPHABETS[split])}{_digits(rng, 5)}"
+def _negative_value(
+    config: CorpusConfig, split: str, family_plugin: str, index: int, seen: set[str]
+) -> str:
+    """Emit hard-negative surface tokens.
+
+    Near-miss and adjacent values are produced by the configured label plugins
+    themselves (near misses include an OCR-noised variant), so hard negatives
+    mirror the positive value distribution for any label set and no shape occurs
+    exclusively as an annotated entity. The shared ``seen`` pool keeps them
+    disjoint from every annotated value.
+    """
+    for attempt in range(100):
+        rng = _rng(config, split, family_plugin, index, "negative", attempt)
+        if family_plugin in {"near_miss", "adjacent_value"}:
+            label = config.labels[index % len(config.labels)]
+            plugin = _VALUE_PLUGINS[label.plugin]
+            candidate = plugin(rng, label, split, index + 31 + attempt * 89)
+            if family_plugin == "near_miss" and index % 4 == 3:
+                candidate = _ocr_noise(candidate, index)
+        else:
+            prefix = {"unrelated_shape": "SYN-ASSET"}.get(family_plugin, "SYN-REF")
+            candidate = f"{prefix}-{rng.choice(_split_letters(split))}{_digits(rng, 5)}"
+        if candidate not in seen:
+            seen.add(candidate)
+            return candidate
+    raise ValueError(f"could not generate a unique negative value for {family_plugin}")
 
 
 def _marker(label: str, value: str) -> str:
@@ -192,6 +206,19 @@ def _sample_reference(config: CorpusConfig, split: str, family: str, index: int)
     return f"SYN-DOC-{token}"
 
 
+# Every variant surfaces the persona, the organization, and the unique reference;
+# the bank is rotated by record index so no single footer phrase spans the corpus.
+_CONTEXT_VARIANTS = (
+    " Synthetic context: subject {persona}; organization {organization}; "
+    "document reference {reference}.",
+    " Fictional trace for {persona} at {organization}; file token {reference}.",
+    " Demo provenance: {persona} with {organization}, tracking tag {reference}.",
+    " Sample metadata lists {persona}, {organization}, and marker {reference}.",
+    " For testing only: {persona} / {organization} / ref {reference}.",
+    " Synthetic footer naming {persona} and {organization}, keyed {reference}.",
+)
+
+
 def _context_suffix(
     config: CorpusConfig,
     split: str,
@@ -201,9 +228,11 @@ def _context_suffix(
     organization: str,
 ) -> str:
     """Render class-balanced metadata evidence and a unique synthetic reference."""
-    return (
-        f" Synthetic context: subject {persona}; organization {organization}; "
-        f"document reference {_sample_reference(config, split, family, index)}."
+    variant = _CONTEXT_VARIANTS[index % len(_CONTEXT_VARIANTS)]
+    return variant.format(
+        persona=persona,
+        organization=organization,
+        reference=_sample_reference(config, split, family, index),
     )
 
 
@@ -224,10 +253,12 @@ def _positive_record(
         raise ValueError(f"family {family.name} has no eligible labels")
     label = eligible_labels[index % len(eligible_labels)]
     cycle = index // len(eligible_labels)
-    persona = _PERSONAS[split][cycle % len(_PERSONAS[split])]
-    organization = _ORGANIZATIONS[split][cycle % len(_ORGANIZATIONS[split])]
+    personas = split_partition(config.surfaces.personas, split)
+    organizations = split_partition(config.surfaces.organizations, split)
+    persona = personas[index % len(personas)]
+    organization = organizations[cycle % len(organizations)]
     templates = _split_templates(family, split)
-    template_index = cycle % len(templates)
+    template_index = index % len(templates)
     cue = label.cues[cycle % len(label.cues)]
     metadata: dict[str, object] = {"synthetic": True}
     plugin_label: LabelConfig | None = None
@@ -314,16 +345,24 @@ def _positive_record(
     )
 
 
-def _negative_record(config: CorpusConfig, family: FamilyConfig, split: str, index: int) -> Record:
+def _negative_record(
+    config: CorpusConfig,
+    family: FamilyConfig,
+    split: str,
+    index: int,
+    seen_values: set[str],
+) -> Record:
     plugin = get_family(family.plugin)
     templates = _split_templates(family, split)
     template_index = index % len(templates)
-    persona = _PERSONAS[split][index % len(_PERSONAS[split])]
-    organization = _ORGANIZATIONS[split][index % len(_ORGANIZATIONS[split])]
+    personas = split_partition(config.surfaces.personas, split)
+    organizations = split_partition(config.surfaces.organizations, split)
+    persona = personas[index % len(personas)]
+    organization = organizations[index % len(organizations)]
     label = config.labels[index % len(config.labels)]
     fields = {
         "cue": label.cues[index % len(label.cues)],
-        "negative_value": _negative_value(config, split, family.plugin, index),
+        "negative_value": _negative_value(config, split, family.plugin, index, seen_values),
         "organization": organization,
         "persona": persona,
     }
@@ -384,7 +423,7 @@ def generate_records(config: CorpusConfig) -> dict[str, list[Record]]:
                 rows.append(row)
         for family in negative_families:
             for index in range(neg_counts[family.name]):
-                row = _negative_record(config, family, split, index)
+                row = _negative_record(config, family, split, index, seen_values)
                 if row.text in seen_bodies:
                     raise ValueError(
                         f"generator produced a duplicate body in {split}/{family.name}"

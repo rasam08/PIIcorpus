@@ -1,0 +1,143 @@
+# Realistic-but-reserved demo: values look like genuine contact and identity
+# surface forms while remaining provably reserved, fictional, or invalid by
+# construction (see docs/DATA_SAFETY.md). Safety runs in verifier mode, so no
+# synthetic prefix is required and detector regexes get realistic shapes.
+#
+# The ocr_noise and spoken families are deliberately absent: their surface
+# transformations would break the reservedness proofs the verifiers provide.
+
+project_name = "PIIcorpus realistic reserved-surface demo"
+seed = 271828
+generated_data_license = "CC0-1.0"
+positive_ratio = 0.55
+minimum_hard_negative_ratio = 0.40
+
+[splits]
+train = 182
+eval = 143
+holdout = 117
+
+[diversity]
+minimum_templates_per_family = 6
+minimum_personas_per_family = 6
+minimum_organizations_per_split = 3
+
+[audit]
+max_morphology_label_share = 0.75
+max_label_exclusive_cue_fraction = 0.45
+max_family_share = 0.12
+minimum_hard_negative_kinds = 6
+max_template_share = 0.05
+max_kind_marker_share = 0.90
+minimum_marker_kind_coverage = 0.50
+minimum_marker_support = 20
+
+[audit.probe]
+enabled = true
+max_kind_accuracy = 0.90
+max_value_label_accuracy = 0.90
+max_context_label_accuracy = 0.90
+
+[safety]
+mode = "verifier"
+reserved_email_domains = ["example.com", "example.org", "example.net"]
+allowed_value_prefixes = []
+forbidden_terms = []
+
+[[labels]]
+name = "CONTACT_EMAIL"
+plugin = "reserved_email"
+morphology_group = "email"
+cues = ["contact detail", "listed entry", "contact email"]
+options = { realism = "reserved_documentation_domain" }
+
+[[labels]]
+name = "PERSONAL_PHONE"
+plugin = "reserved_phone_nanp"
+morphology_group = "nanp_phone"
+cues = ["contact detail", "listed entry", "personal phone"]
+options = { realism = "reserved_fictional_exchange", preferred_shape = "phone_paren" }
+
+[[labels]]
+name = "WORK_PHONE"
+plugin = "reserved_phone_nanp"
+morphology_group = "nanp_phone"
+cues = ["contact detail", "listed entry", "work phone"]
+options = { realism = "reserved_fictional_exchange", preferred_shape = "phone_dash" }
+
+[[labels]]
+name = "PAYMENT_CARD_HINT"
+plugin = "card_shaped_invalid"
+morphology_group = "payment_card"
+cues = ["contact detail", "listed entry", "card digits"]
+options = { realism = "luhn_invalid_by_construction" }
+
+[[labels]]
+name = "DEVICE_IP"
+plugin = "documentation_ip"
+morphology_group = "network_address"
+cues = ["contact detail", "listed entry", "device address"]
+options = { realism = "rfc5737_documentation_range" }
+
+[[labels]]
+name = "NATIONAL_ID_SHAPED"
+plugin = "never_issued_ssn_shape"
+morphology_group = "national_id"
+cues = ["contact detail", "listed entry", "national identifier"]
+options = { realism = "never_issued_area_numbers" }
+
+[[families]]
+name = "narrative_prose"
+plugin = "narrative"
+role = "positive"
+
+[[families]]
+name = "structural_tabular"
+plugin = "structural"
+role = "positive"
+
+[[families]]
+name = "mixed_entity_document"
+plugin = "mixed_entity"
+role = "positive"
+
+[[families]]
+name = "cue_free_examples"
+plugin = "cue_free"
+role = "positive"
+
+[[families]]
+name = "cue_shape_conflicts"
+plugin = "cue_shape_conflict"
+role = "positive"
+labels = ["PERSONAL_PHONE", "WORK_PHONE"]
+
+[[families]]
+name = "hard_negative_near_misses"
+plugin = "near_miss"
+role = "hard_negative"
+
+[[families]]
+name = "placeholders_and_templates"
+plugin = "placeholder"
+role = "hard_negative"
+
+[[families]]
+name = "negation_and_hypothetical"
+plugin = "negation"
+role = "hard_negative"
+
+[[families]]
+name = "unrelated_identifier_shapes"
+plugin = "unrelated_shape"
+role = "hard_negative"
+
+[[families]]
+name = "documentation_meta_references"
+plugin = "documentation_meta"
+role = "hard_negative"
+
+[[families]]
+name = "adjacent_non_sensitive_values"
+plugin = "adjacent_value"
+role = "hard_negative"

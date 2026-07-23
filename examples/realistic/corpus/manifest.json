@@ -1,0 +1,145 @@
+{
+  "configuration_digest": "1c422506b63d4ca37fd2a95e60dc58f35ac4a4a77b8c988bd91e9b6f28aa513a",
+  "counts": {
+    "eval": {
+      "families": {
+        "adjacent_non_sensitive_values": 10,
+        "cue_free_examples": 15,
+        "cue_shape_conflicts": 15,
+        "documentation_meta_references": 11,
+        "hard_negative_near_misses": 11,
+        "mixed_entity_document": 16,
+        "narrative_prose": 16,
+        "negation_and_hypothetical": 11,
+        "placeholders_and_templates": 11,
+        "structural_tabular": 16,
+        "unrelated_identifier_shapes": 11
+      },
+      "hard_negative_kinds": {
+        "adjacent_non_sensitive_values": 10,
+        "documentation_meta_references": 11,
+        "hard_negative_near_misses": 11,
+        "negation_and_hypothetical": 11,
+        "placeholders_and_templates": 11,
+        "unrelated_identifier_shapes": 11
+      },
+      "labels": {
+        "CONTACT_EMAIL": 14,
+        "DEVICE_IP": 11,
+        "NATIONAL_ID_SHAPED": 10,
+        "PAYMENT_CARD_HINT": 14,
+        "PERSONAL_PHONE": 23,
+        "WORK_PHONE": 22
+      },
+      "negatives": 65,
+      "organizations": 4,
+      "personas": 8,
+      "positives": 78,
+      "records": 143,
+      "templates": 110
+    },
+    "holdout": {
+      "families": {
+        "adjacent_non_sensitive_values": 8,
+        "cue_free_examples": 13,
+        "cue_shape_conflicts": 12,
+        "documentation_meta_references": 9,
+        "hard_negative_near_misses": 9,
+        "mixed_entity_document": 13,
+        "narrative_prose": 13,
+        "negation_and_hypothetical": 9,
+        "placeholders_and_templates": 9,
+        "structural_tabular": 13,
+        "unrelated_identifier_shapes": 9
+      },
+      "hard_negative_kinds": {
+        "adjacent_non_sensitive_values": 8,
+        "documentation_meta_references": 9,
+        "hard_negative_near_misses": 9,
+        "negation_and_hypothetical": 9,
+        "placeholders_and_templates": 9,
+        "unrelated_identifier_shapes": 9
+      },
+      "labels": {
+        "CONTACT_EMAIL": 14,
+        "DEVICE_IP": 10,
+        "NATIONAL_ID_SHAPED": 10,
+        "PAYMENT_CARD_HINT": 10,
+        "PERSONAL_PHONE": 17,
+        "WORK_PHONE": 16
+      },
+      "negatives": 53,
+      "organizations": 4,
+      "personas": 8,
+      "positives": 64,
+      "records": 117,
+      "templates": 103
+    },
+    "train": {
+      "families": {
+        "adjacent_non_sensitive_values": 13,
+        "cue_free_examples": 20,
+        "cue_shape_conflicts": 20,
+        "documentation_meta_references": 13,
+        "hard_negative_near_misses": 14,
+        "mixed_entity_document": 20,
+        "narrative_prose": 20,
+        "negation_and_hypothetical": 14,
+        "placeholders_and_templates": 14,
+        "structural_tabular": 20,
+        "unrelated_identifier_shapes": 14
+      },
+      "hard_negative_kinds": {
+        "adjacent_non_sensitive_values": 13,
+        "documentation_meta_references": 13,
+        "hard_negative_near_misses": 14,
+        "negation_and_hypothetical": 14,
+        "placeholders_and_templates": 14,
+        "unrelated_identifier_shapes": 14
+      },
+      "labels": {
+        "CONTACT_EMAIL": 19,
+        "DEVICE_IP": 15,
+        "NATIONAL_ID_SHAPED": 15,
+        "PAYMENT_CARD_HINT": 15,
+        "PERSONAL_PHONE": 30,
+        "WORK_PHONE": 26
+      },
+      "negatives": 82,
+      "organizations": 4,
+      "personas": 8,
+      "positives": 100,
+      "records": 182,
+      "templates": 110
+    }
+  },
+  "determinism": {
+    "json_serialization": "UTF-8, sorted keys, compact JSONL, LF newlines",
+    "ordering": "split order and configured family order are stable",
+    "randomness": "SHA-256-namespaced pseudorandom streams"
+  },
+  "files": {
+    "corpus-config.json": {
+      "bytes": 6228,
+      "sha256": "0aec58c00facb438ea4b028ece1281d09d816fdd3a08682df88c60c836e24518"
+    },
+    "splits/eval.jsonl": {
+      "bytes": 108808,
+      "sha256": "24dc841ccb9831125f30d0148a3174ccd3a53a0c6f630d5862c2501f9d8fb217"
+    },
+    "splits/holdout.jsonl": {
+      "bytes": 91388,
+      "sha256": "ad670955b4503ceb3a1541f19921e4e1ffed208158a3e08c09ed23e1ec448fba"
+    },
+    "splits/train.jsonl": {
+      "bytes": 140461,
+      "sha256": "7e882333e84cbb29cb838b46d4891d17f4249f85c1ec1f48b8b52b849d66e290"
+    }
+  },
+  "generated_data_license": "CC0-1.0",
+  "generator_version": "2.0.0",
+  "project": "PIIcorpus",
+  "schema_version": "piicorpus.manifest/v1",
+  "seed": 271828,
+  "synthetic_holdout_limitation": "A holdout produced by the same generator is useful for regression testing but is not an independent generalization test."
+}

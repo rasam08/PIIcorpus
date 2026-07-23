@@ -73,9 +73,17 @@ def _spans(record: Record) -> list[dict[str, Any]]:
     ]
 
 
-def _all_records(directory: str | Path) -> list[Record]:
-    _config, split_records, _manifest = load_corpus(directory)
-    return [record for split in ("train", "eval", "holdout") for record in split_records[split]]
+def _hf_row(record: Record) -> dict[str, Any]:
+    tokens = _tokenize(record)
+    return {
+        "id": record.case_id,
+        "ner_tags": [token[3] for token in tokens],
+        "spans": _spans(record),
+        "split": record.split,
+        "text": record.text,
+        "token_offsets": [[token[1], token[2]] for token in tokens],
+        "tokens": [token[0] for token in tokens],
+    }
 
 
 def export_corpus(
@@ -93,38 +101,42 @@ def export_corpus(
         raise CorpusIntegrityError(validation)
     destination = Path(output) if output else root / "exports" / format_name
     destination.mkdir(parents=True, exist_ok=True)
-    records = _all_records(root)
+    config, split_records, _manifest = load_corpus(root)
+    records = [
+        record for split in ("train", "eval", "holdout") for record in split_records[split]
+    ]
+
+    written: dict[str, str] = {}
+
+    def _write(path: Path, payload: str) -> None:
+        path.write_text(payload, encoding="utf-8", newline="\n")
+        written[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
 
     if format_name == "jsonl":
-        path = destination / "corpus.jsonl"
-        payload = "".join(stable_json(record.to_dict()) + "\n" for record in records)
+        primary = destination / "corpus.jsonl"
+        _write(
+            primary, "".join(stable_json(record.to_dict()) + "\n" for record in records)
+        )
     elif format_name == "bio":
-        path = destination / "corpus.bio"
+        primary = destination / "corpus.bio"
         blocks = []
         for record in records:
             lines = [f"# id={record.case_id} split={record.split}"]
             lines.extend(f"{token}\t{tag}" for token, _start, _end, tag in _tokenize(record))
             blocks.append("\n".join(lines))
-        payload = "\n\n".join(blocks) + "\n"
+        _write(primary, "\n\n".join(blocks) + "\n")
     elif format_name == "huggingface":
-        path = destination / "corpus.jsonl"
-        output_rows = []
-        for record in records:
-            tokens = _tokenize(record)
-            output_rows.append(
-                {
-                    "id": record.case_id,
-                    "ner_tags": [token[3] for token in tokens],
-                    "spans": _spans(record),
-                    "split": record.split,
-                    "text": record.text,
-                    "token_offsets": [[token[1], token[2]] for token in tokens],
-                    "tokens": [token[0] for token in tokens],
-                }
+        # One file per split so `datasets` split mapping loads them directly.
+        primary = destination / "train.jsonl"
+        for split in ("train", "eval", "holdout"):
+            _write(
+                destination / f"{split}.jsonl",
+                "".join(
+                    stable_json(_hf_row(record)) + "\n" for record in split_records[split]
+                ),
             )
-        payload = "".join(stable_json(row) + "\n" for row in output_rows)
     elif format_name == "spacy":
-        path = destination / "corpus.spacy.jsonl"
+        primary = destination / "corpus.spacy.jsonl"
         output_rows = [
             {
                 "entities": [[a.start, a.end, a.entity_type] for a in record.annotations],
@@ -134,10 +146,10 @@ def export_corpus(
             }
             for record in records
         ]
-        payload = "".join(stable_json(row) + "\n" for row in output_rows)
+        _write(primary, "".join(stable_json(row) + "\n" for row in output_rows))
     else:
-        path = destination / "presidio-fixtures.jsonl"
-        output_rows = [
+        primary = destination / "presidio-fixtures.jsonl"
+        presidio_rows = [
             {
                 "expected": [
                     {
@@ -153,13 +165,31 @@ def export_corpus(
             }
             for record in records
         ]
-        payload = "".join(stable_json(row) + "\n" for row in output_rows)
+        _write(primary, "".join(stable_json(row) + "\n" for row in presidio_rows))
 
-    path.write_text(payload, encoding="utf-8", newline="\n")
+    labels = sorted(label.name for label in config.labels)
+    _write(
+        destination / "labels.json",
+        stable_json(
+            {
+                "bio_tags": [
+                    "O",
+                    *(
+                        f"{prefix}-{label}"
+                        for label in labels
+                        for prefix in ("B", "I")
+                    ),
+                ],
+                "labels": labels,
+            },
+            pretty=True,
+        ),
+    )
     return {
+        "files": dict(sorted(written.items())),
         "format": format_name,
         "integrity_valid": validation.valid,
-        "path": str(path),
+        "path": str(primary),
         "records": len(records),
-        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "sha256": written[primary.name],
     }

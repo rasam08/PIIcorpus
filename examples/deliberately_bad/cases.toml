@@ -58,8 +58,23 @@ expected_risk = "hard_negative_coverage"
 [cases.family_imbalance]
 expected_risk = "family_imbalance"
 
-[cases.low_entropy]
-expected_risk = "low_value_entropy"
+[cases.low_value_diversity]
+expected_risk = "value_diversity"
+
+[cases.entity_shape_shortcut]
+expected_risk = "shape_entity_shortcut"
+
+[cases.constant_footer]
+expected_risk = "pervasive_phrase_fingerprint"
+
+[cases.intra_split_near_dupes]
+expected_risk = "intra_split_redundancy"
+
+[cases.label_lexical_marker]
+expected_risk = "label_marker_shortcuts"
+
+[cases.probe_kind_giveaway]
+expected_risk = "probe_kind_separability"
 
 [cases.malformed_spans]
 expected_risk = "malformed_or_unbalanced_spans"

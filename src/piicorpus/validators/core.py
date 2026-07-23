@@ -101,6 +101,7 @@ def validate_corpus(directory: str | Path, *, strict: bool = False) -> Validatio
     checks["file_sha256"] = file_results
 
     configured_labels = {label.name for label in config.labels}
+    label_plugins = {label.name: label.plugin for label in config.labels}
     family_by_name = {family.name: family for family in config.families}
     ids: set[str] = set()
     namespaces: set[str] = set()
@@ -189,7 +190,9 @@ def validate_corpus(directory: str | Path, *, strict: bool = False) -> Validatio
                 validate_annotations(record.text, record.annotations)
             except AnnotationError as exc:
                 fail("span", f"{record.case_id} has malformed annotation offsets: {exc}")
-            safety_reasons = unsafe_record_reasons(record, config.safety)
+            safety_reasons = unsafe_record_reasons(
+                record, config.safety, label_plugins=label_plugins
+            )
             if safety_reasons:
                 fail(
                     "safety",

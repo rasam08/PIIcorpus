@@ -83,7 +83,7 @@ def test_record_metadata_and_semantic_evidence_are_rendered(generated_demo: Path
     assert all(not record.persona or record.persona in record.text for record in rows)
     assert all(not record.organization or record.organization in record.text for record in rows)
     assert all("Synthetic sample index" not in record.text for record in rows)
-    assert all("document reference SYN-DOC-" in record.text for record in rows)
+    assert all("SYN-DOC-" in record.text for record in rows)
     assert all(
         record.cue_links or family_by_name[record.family].plugin == "cue_free"
         for record in rows

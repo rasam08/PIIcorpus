@@ -117,6 +117,9 @@ class Record:
         }
 
 
+FINDING_STATUSES = ("PASS", "FAIL", "WARN", "UNMEASURED")
+
+
 @dataclass(frozen=True, slots=True)
 class Finding:
     risk: str
@@ -124,6 +127,9 @@ class Finding:
     count: int | None
     reason: str
     details: dict[str, Any] = field(default_factory=dict)
+    measured: float | int | None = None
+    threshold: float | int | None = None
+    threshold_source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

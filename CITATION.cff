@@ -4,8 +4,8 @@ title: "PIIcorpus"
 type: software
 authors:
   - alias: "rasam08"
-version: 0.1.0
-date-released: "2026-07-22"
+version: 0.2.0
+date-released: "2026-07-23"
 license: Apache-2.0
 repository-code: "https://github.com/rasam08/PIIcorpus"
 abstract: >-

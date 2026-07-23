@@ -15,6 +15,15 @@ class AnnotationError(ValueError):
 LABEL_RE = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 
 
+def _ensure_utf8_encodable(text: str) -> None:
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise AnnotationError(
+            f"text cannot carry UTF-8 byte offsets: {exc.reason}"
+        ) from exc
+
+
 def _byte_offset(text: str, position: int) -> int:
     return len(text[:position].encode("utf-8"))
 
@@ -23,6 +32,7 @@ def parse_marked(
     text: str, allowed_labels: Iterable[str] | None = None
 ) -> tuple[str, tuple[Annotation, ...]]:
     """Convert ``[[LABEL:value]]`` markup into clean text and exact spans."""
+    _ensure_utf8_encodable(text)
     allowed = set(allowed_labels) if allowed_labels is not None else None
     clean_parts: list[str] = []
     annotations: list[Annotation] = []
@@ -93,6 +103,7 @@ def parse_marked(
 
 
 def validate_annotations(text: str, annotations: Iterable[Annotation]) -> None:
+    _ensure_utf8_encodable(text)
     previous_end = 0
     byte_length = len(text.encode("utf-8"))
     for index, annotation in enumerate(sorted(annotations, key=lambda a: (a.start, a.end))):

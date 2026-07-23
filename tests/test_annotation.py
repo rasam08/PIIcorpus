@@ -21,13 +21,19 @@ def test_unicode_code_point_and_byte_offsets_round_trip() -> None:
 
 
 @given(
-    prefix=st.text(alphabet=st.characters(blacklist_characters="[]"), max_size=20),
+    prefix=st.text(
+        alphabet=st.characters(blacklist_characters="[]", blacklist_categories=("Cs",)),
+        max_size=20,
+    ),
     value=st.text(
         alphabet=st.characters(blacklist_characters="[]:\r\n", blacklist_categories=("Cs",)),
         min_size=1,
         max_size=25,
     ).filter(lambda value: bool(value.strip())),
-    suffix=st.text(alphabet=st.characters(blacklist_characters="[]"), max_size=20),
+    suffix=st.text(
+        alphabet=st.characters(blacklist_characters="[]", blacklist_categories=("Cs",)),
+        max_size=20,
+    ),
 )
 def test_property_unicode_round_trip(prefix: str, value: str, suffix: str) -> None:
     canonical = value.strip()
@@ -51,6 +57,13 @@ def test_property_unicode_round_trip(prefix: str, value: str, suffix: str) -> No
 def test_malformed_markers_are_rejected(marked: str) -> None:
     with pytest.raises(AnnotationError):
         parse_marked(marked)
+
+
+def test_unencodable_surrogates_are_rejected_loudly() -> None:
+    with pytest.raises(AnnotationError, match="UTF-8"):
+        parse_marked("\ud800[[SYNTHETIC_LABEL:value]]")
+    with pytest.raises(AnnotationError, match="UTF-8"):
+        validate_annotations("bad \udfff tail", ())
 
 
 def test_overlapping_annotations_are_rejected() -> None:

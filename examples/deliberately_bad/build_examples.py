@@ -284,13 +284,63 @@ def build_bad_corpus(clean_directory: Path, output: Path, case: str) -> None:
                         namespace=f"piicorpus/{split}/narrative_prose/{positive_index:05d}",
                     )
                     positive_index += 1
-    elif case == "low_entropy":
+    elif case == "low_value_diversity":
         for split_rows in records.values():
             for index, record in enumerate(split_rows):
                 if record.annotations:
                     split_rows[index] = _replace_values(
                         record,
                         {i: "SYN-ID-A00001" for i in range(len(record.annotations))},
+                    )
+    elif case == "entity_shape_shortcut":
+        for split_rows in records.values():
+            for index, record in enumerate(split_rows):
+                if record.kind != "hard_negative":
+                    continue
+                text = record.text.replace("SYN-ID-", "SYN-TKT-").replace(
+                    "SYN-DATE-", "SYN-TSTAMP-"
+                )
+                if text != record.text:
+                    split_rows[index] = replace(record, text=text)
+    elif case == "constant_footer":
+        for split_rows in records.values():
+            for index, record in enumerate(split_rows):
+                split_rows[index] = replace(
+                    record, text=record.text + " Synthetic ledger stamp applied here."
+                )
+    elif case == "intra_split_near_dupes":
+        negatives = [
+            index
+            for index, record in enumerate(records["train"])
+            if record.kind == "hard_negative"
+        ]
+        for left, right in zip(negatives[0:16:2], negatives[1:16:2], strict=True):
+            source = records["train"][left]
+            target = records["train"][right]
+            records["train"][right] = replace(
+                target,
+                text=source.text + " Note.",
+                persona=source.persona,
+                organization=source.organization,
+            )
+    elif case == "label_lexical_marker":
+        marker_label = config.labels[0].name
+        for split_rows in records.values():
+            for index, record in enumerate(split_rows):
+                if (
+                    record.kind == "positive"
+                    and len(record.annotations) == 1
+                    and record.annotations[0].entity_type == marker_label
+                ):
+                    split_rows[index] = replace(
+                        record, text=record.text + " Alpha keyword note."
+                    )
+    elif case == "probe_kind_giveaway":
+        for split_rows in records.values():
+            for index, record in enumerate(split_rows):
+                if record.kind == "hard_negative":
+                    split_rows[index] = replace(
+                        record, text=record.text + " Negmarker zeta zeta."
                     )
     elif case == "malformed_spans":
         index = _first_positive(records["train"])

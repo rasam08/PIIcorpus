@@ -10,18 +10,17 @@ eval = 143
 holdout = 117
 
 [diversity]
-minimum_templates_per_family = 2
-minimum_personas_per_family = 3
+minimum_templates_per_family = 6
+minimum_personas_per_family = 6
 minimum_organizations_per_split = 3
 
 [audit]
 max_morphology_label_share = 0.75
 max_label_exclusive_cue_fraction = 0.45
 max_family_share = 0.12
-minimum_value_entropy_bits = 6.0
 minimum_hard_negative_kinds = 6
 max_template_share = 0.05
-max_kind_marker_share = 0.98
+max_kind_marker_share = 0.90
 minimum_marker_kind_coverage = 0.50
 minimum_marker_support = 20
 

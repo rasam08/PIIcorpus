@@ -1,5 +1,5 @@
 {
-  "configuration_digest": "b2271535fb512446d1f75919e64fe5cee8305a36951b0609c6b7aa68b7f1f24e",
+  "configuration_digest": "4a4aa8aafcdab2ff528443252265015436ffcdd520125a533cc9835a979089bc",
   "counts": {
     "eval": {
       "families": {
@@ -32,11 +32,11 @@
         "TRAVEL_DOCUMENT_ID": 25
       },
       "negatives": 58,
-      "organizations": 3,
-      "personas": 6,
+      "organizations": 4,
+      "personas": 8,
       "positives": 85,
       "records": 143,
-      "templates": 26
+      "templates": 128
     },
     "holdout": {
       "families": {
@@ -69,11 +69,11 @@
         "TRAVEL_DOCUMENT_ID": 24
       },
       "negatives": 47,
-      "organizations": 3,
-      "personas": 6,
+      "organizations": 4,
+      "personas": 8,
       "positives": 70,
       "records": 117,
-      "templates": 26
+      "templates": 117
     },
     "train": {
       "families": {
@@ -106,11 +106,11 @@
         "TRAVEL_DOCUMENT_ID": 33
       },
       "negatives": 73,
-      "organizations": 3,
-      "personas": 6,
+      "organizations": 4,
+      "personas": 8,
       "positives": 109,
       "records": 182,
-      "templates": 26
+      "templates": 130
     }
   },
   "determinism": {
@@ -120,24 +120,24 @@
   },
   "files": {
     "corpus-config.json": {
-      "bytes": 4791,
-      "sha256": "0e5359ee6a5895dd5be579717bcaef14ecb8b968bda9885dd548a9a63d4de656"
+      "bytes": 6187,
+      "sha256": "a41cbd55ddeb746993354398972a7ad1b16eead8ea3be3595d4c8c01af8e4244"
     },
     "splits/eval.jsonl": {
-      "bytes": 116047,
-      "sha256": "cb73020346511aae6c7579283c260ad83dd9776af0008527805b9985f1d10177"
+      "bytes": 111384,
+      "sha256": "33def9b1d5353729da64930ec52fe18cbbf0eb0641f61cd1ef7dde3e04864ad6"
     },
     "splits/holdout.jsonl": {
-      "bytes": 95388,
-      "sha256": "dbbe187535936d0f6c4f5b38adff83b1056d795b63851681a0727da366e11486"
+      "bytes": 93271,
+      "sha256": "232dadaab8d55f4046f8e754fd16cc7e26bd726042b441c0c8af03f8130238be"
     },
     "splits/train.jsonl": {
-      "bytes": 146307,
-      "sha256": "1bb4a872ea5d1b4c946a09b1890b63cdfa0f04eafc142ee5d4dd6228e87a5079"
+      "bytes": 143001,
+      "sha256": "3a8e94e98cd94bd41f353a2324e818afc88874441fdc77a3fe8b84aeaf2b586b"
     }
   },
   "generated_data_license": "CC0-1.0",
-  "generator_version": "1.1.0",
+  "generator_version": "2.0.0",
   "project": "PIIcorpus",
   "schema_version": "piicorpus.manifest/v1",
   "seed": 314159,

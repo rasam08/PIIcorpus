@@ -3,27 +3,39 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from .models import Annotation
 
+ShapeMatcher = Callable[[str], bool]
+
+_SHAPE_REGISTRY: dict[str, ShapeMatcher] = {}
+
+
+def register_shape(name: str, matcher: str | ShapeMatcher, *, replace: bool = False) -> None:
+    """Register a named value shape; string matchers are treated as full-match regexes.
+
+    Matchers are consulted in registration order, so register specific shapes
+    before broader catch-all shapes. Unmatched values fall back to a generic
+    character-class signature.
+    """
+    if name in _SHAPE_REGISTRY and not replace:
+        raise ValueError(f"shape is already registered: {name}")
+    if isinstance(matcher, str):
+        compiled = re.compile(matcher)
+        _SHAPE_REGISTRY[name] = lambda value: compiled.fullmatch(value) is not None
+    else:
+        _SHAPE_REGISTRY[name] = matcher
+
+
+def registered_shapes() -> tuple[str, ...]:
+    return tuple(_SHAPE_REGISTRY)
+
 
 def shape_signature(value: str) -> str:
-    lowered = value.casefold().strip()
-    if lowered.startswith("synthetic "):
-        return "spoken_synthetic"
-    if re.fullmatch(r"SYN-DATE-\d{4}-\d{2}-\d{2}", value):
-        return "synthetic_calendar"
-    if re.fullmatch(r"SYN-ID-[A-Z]\d{5}", value):
-        return "synthetic_alpha_five"
-    if re.fullmatch(r"SYN-ID-[A-Z]{2}\d{4}", value):
-        return "synthetic_two_alpha_four"
-    if re.fullmatch(r"SYN-ID-[A-Z]{3}-\d{3}", value):
-        return "synthetic_segmented"
-    if value.startswith("SYN-ID-"):
-        return "synthetic_noisy"
-    if re.fullmatch(r"BAD-[A-Z]\d{7}", value):
-        return "exclusive_bad_alpha_seven"
+    for name, matcher in _SHAPE_REGISTRY.items():
+        if matcher(value):
+            return name
     mapped = []
     for char in value:
         if char.isalpha():

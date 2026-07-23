@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "piicorpus"
-version = "0.1.0"
-description = "Deterministic synthetic contextual-PII corpus generation and structural-independence auditing"
+version = "0.2.0"
+description = "Deterministic synthetic contextual-PII corpus generation, structural-independence auditing, and detector scoring"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }

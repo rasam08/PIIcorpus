@@ -9,7 +9,16 @@ from pathlib import Path
 from typing import Any
 
 from ..annotation import AnnotationError, parse_marked
+from ..config import SafetyConfig
 from ..models import Record, stable_json
+from ..safety import unsafe_text_reasons
+
+_SCAN_CONFIG = SafetyConfig(
+    reserved_email_domains=("example.com", "example.org", "example.net"),
+    allowed_value_prefixes=(),
+    forbidden_terms=(),
+)
+_MAX_FLAGGED_RECORDS = 50
 
 
 class ImportErrorSafe(ValueError):
@@ -56,6 +65,8 @@ def import_annotated(
         raise ImportErrorSafe("import output directory is not empty")
     entries = _read_entries(source)
     records: list[Record] = []
+    safety_reason_counts: Counter[str] = Counter()
+    flagged_records: list[int] = []
     for index, (family, marked) in enumerate(entries, 1):
         try:
             clean, annotations = parse_marked(marked)
@@ -64,6 +75,11 @@ def import_annotated(
             if debug_local:
                 message += f"; local body={marked!r}"
             raise ImportErrorSafe(message) from exc
+        reasons = unsafe_text_reasons(clean, _SCAN_CONFIG)
+        if reasons:
+            safety_reason_counts.update(set(reasons))
+            if len(flagged_records) < _MAX_FLAGGED_RECORDS:
+                flagged_records.append(index)
         material = stable_json(
             {
                 "annotations": [annotation.to_dict() for annotation in annotations],
@@ -79,11 +95,10 @@ def import_annotated(
                 family=family,
                 namespace=f"piicorpus/import/{case_id}",
                 template_id="human_supplied",
-                kind="positive" if annotations else "hard_negative",
+                kind="positive" if annotations else "unannotated",
                 provenance="human_supplied",
                 text=clean,
                 annotations=annotations,
-                hard_negative_kind=None if annotations else "human_supplied_unmarked",
                 metadata={"release_status": "unreviewed"},
             )
         )
@@ -106,7 +121,11 @@ def import_annotated(
         "records": len(records),
         "release_status": "unreviewed",
         "responsibility_warning": RESPONSIBILITY_WARNING,
-        "schema_version": "piicorpus.import/v1",
+        "safety_findings": {
+            "flagged_record_numbers": flagged_records,
+            "reasons": dict(sorted(safety_reason_counts.items())),
+        },
+        "schema_version": "piicorpus.import/v2",
         "sha256": hashlib.sha256(records_path.read_bytes()).hexdigest(),
     }
     (destination / "import-manifest.json").write_text(

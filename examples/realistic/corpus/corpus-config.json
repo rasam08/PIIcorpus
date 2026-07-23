@@ -18,7 +18,7 @@
     "minimum_shape_support": 20,
     "near_duplicate_jaccard": 0.97,
     "probe": {
-      "enabled": false,
+      "enabled": true,
       "max_context_label_accuracy": 0.9,
       "max_kind_accuracy": 0.9,
       "max_value_label_accuracy": 0.9
@@ -48,22 +48,6 @@
     },
     {
       "labels": [],
-      "name": "ocr_like_noise",
-      "plugin": "ocr_noise",
-      "role": "positive",
-      "templates": [],
-      "weight": 1
-    },
-    {
-      "labels": [],
-      "name": "spoken_transcript",
-      "plugin": "spoken",
-      "role": "positive",
-      "templates": [],
-      "weight": 1
-    },
-    {
-      "labels": [],
       "name": "mixed_entity_document",
       "plugin": "mixed_entity",
       "role": "positive",
@@ -80,9 +64,8 @@
     },
     {
       "labels": [
-        "PATIENT_RECORD_ID",
-        "TRAVEL_DOCUMENT_ID",
-        "DRIVER_CREDENTIAL_ID"
+        "PERSONAL_PHONE",
+        "WORK_PHONE"
       ],
       "name": "cue_shape_conflicts",
       "plugin": "cue_shape_conflict",
@@ -143,77 +126,99 @@
   "labels": [
     {
       "cues": [
-        "identity value",
-        "record reference",
-        "patient record identifier"
+        "contact detail",
+        "listed entry",
+        "contact email"
       ],
-      "morphology_group": "fictional_identifier",
-      "name": "PATIENT_RECORD_ID",
+      "morphology_group": "email",
+      "name": "CONTACT_EMAIL",
       "options": {
-        "preferred_shape": "synthetic_alpha_five",
-        "realism": "intentionally_fictional"
+        "realism": "reserved_documentation_domain"
       },
-      "plugin": "fictional_identifier"
+      "plugin": "reserved_email"
     },
     {
       "cues": [
-        "identity value",
-        "record reference",
-        "travel document identifier"
+        "contact detail",
+        "listed entry",
+        "personal phone"
       ],
-      "morphology_group": "fictional_identifier",
-      "name": "TRAVEL_DOCUMENT_ID",
+      "morphology_group": "nanp_phone",
+      "name": "PERSONAL_PHONE",
       "options": {
-        "preferred_shape": "synthetic_two_alpha_four",
-        "realism": "intentionally_fictional"
+        "preferred_shape": "phone_paren",
+        "realism": "reserved_fictional_exchange"
       },
-      "plugin": "fictional_identifier"
+      "plugin": "reserved_phone_nanp"
     },
     {
       "cues": [
-        "identity value",
-        "record reference",
-        "driver credential identifier"
+        "contact detail",
+        "listed entry",
+        "work phone"
       ],
-      "morphology_group": "fictional_identifier",
-      "name": "DRIVER_CREDENTIAL_ID",
+      "morphology_group": "nanp_phone",
+      "name": "WORK_PHONE",
       "options": {
-        "preferred_shape": "synthetic_segmented",
-        "realism": "intentionally_fictional"
+        "preferred_shape": "phone_dash",
+        "realism": "reserved_fictional_exchange"
       },
-      "plugin": "fictional_identifier"
+      "plugin": "reserved_phone_nanp"
     },
     {
       "cues": [
-        "identity value",
-        "record reference",
-        "synthetic birth date"
+        "contact detail",
+        "listed entry",
+        "card digits"
       ],
-      "morphology_group": "calendar",
-      "name": "BIRTH_DATE",
+      "morphology_group": "payment_card",
+      "name": "PAYMENT_CARD_HINT",
       "options": {
-        "realism": "synthetic_calendar_value"
+        "realism": "luhn_invalid_by_construction"
       },
-      "plugin": "synthetic_date"
+      "plugin": "card_shaped_invalid"
+    },
+    {
+      "cues": [
+        "contact detail",
+        "listed entry",
+        "device address"
+      ],
+      "morphology_group": "network_address",
+      "name": "DEVICE_IP",
+      "options": {
+        "realism": "rfc5737_documentation_range"
+      },
+      "plugin": "documentation_ip"
+    },
+    {
+      "cues": [
+        "contact detail",
+        "listed entry",
+        "national identifier"
+      ],
+      "morphology_group": "national_id",
+      "name": "NATIONAL_ID_SHAPED",
+      "options": {
+        "realism": "never_issued_area_numbers"
+      },
+      "plugin": "never_issued_ssn_shape"
     }
   ],
-  "minimum_hard_negative_ratio": 0.35,
-  "positive_ratio": 0.6,
-  "project_name": "PIIcorpus fictional contextual-PII demo",
+  "minimum_hard_negative_ratio": 0.4,
+  "positive_ratio": 0.55,
+  "project_name": "PIIcorpus realistic reserved-surface demo",
   "safety": {
-    "allowed_value_prefixes": [
-      "SYN-",
-      "synthetic "
-    ],
+    "allowed_value_prefixes": [],
     "forbidden_terms": [],
-    "mode": "either",
+    "mode": "verifier",
     "reserved_email_domains": [
       "example.com",
       "example.org",
       "example.net"
     ]
   },
-  "seed": 314159,
+  "seed": 271828,
   "splits": {
     "eval": 143,
     "holdout": 117,
