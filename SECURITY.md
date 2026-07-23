@@ -11,7 +11,7 @@ preferred. No email address is designated for security reports.
 
 ## Supported versions
 
-Until a public release exists, only the latest local `0.1.x` state is considered for fixes.
+Only the latest published release is supported with security fixes.
 
 ## Security boundaries
 
