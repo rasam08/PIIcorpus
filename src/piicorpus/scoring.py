@@ -3,7 +3,7 @@
 The scorer never runs a model. It consumes span predictions produced by any
 detector and reports precision/recall/F1 sliced by label, family, kind, and
 split, plus a diagnostics section that turns the corpus's engineered families
-into mechanism measurements: cue dependence, morphology dependence,
+into mechanism measurements: cue dependence, shape-hint substitution,
 over-triggering on hard negatives, and noise robustness.
 
 Scores on synthetic data demonstrate mechanism failures; they never demonstrate
@@ -13,7 +13,7 @@ real-world adequacy. See docs/CLAIM_BOUNDARIES.md.
 from __future__ import annotations
 
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -23,8 +23,8 @@ from .models import Record, stable_json
 from .validators import CorpusIntegrityError, validate_corpus
 
 SCORING_LIMITATION = (
-    "Scores on synthetic data demonstrate mechanism failures (cue reliance, shape "
-    "reliance, over-triggering); they never demonstrate real-world adequacy."
+    "Scores on synthetic data demonstrate mechanism failures (cue reliance, shape-hint "
+    "substitution, over-triggering); they never demonstrate real-world adequacy."
 )
 
 Span = tuple[int, int, str]
@@ -154,6 +154,12 @@ def _iou(left: Span, right: Span) -> float:
     return overlap / union
 
 
+def _span_targets_gold(gold: Span, predicted: Span, mode: str) -> bool:
+    if mode == "strict":
+        return gold[:2] == predicted[:2]
+    return _iou(gold, predicted) >= 0.5
+
+
 def _match_spans(
     gold: list[Span], predicted: list[Span], mode: str
 ) -> tuple[int, list[Span], list[Span]]:
@@ -194,7 +200,35 @@ def _match_spans(
     return len(matched_gold), false_positives, false_negatives
 
 
-def load_predictions(path: str | Path) -> dict[str, list[Span]]:
+def _prediction_offset(value: object, key: str, *, allow_invalid: bool) -> int:
+    if allow_invalid:
+        if not isinstance(value, (str, int, float)) or isinstance(value, bool):
+            raise TypeError(f"prediction span {key} must be numeric")
+        return int(value)
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError(f"prediction span {key} must be an integer")
+    return value
+
+
+def _validate_prediction_collection(spans: list[Span]) -> None:
+    for start, end, _label in spans:
+        if start < 0:
+            raise TypeError("prediction span start cannot be negative")
+        if start >= end:
+            raise TypeError("prediction span start must be less than end")
+    if len(set(spans)) != len(spans):
+        raise TypeError("prediction spans cannot contain exact duplicates")
+    ordered = sorted(spans, key=lambda span: (span[0], span[1], span[2]))
+    for left_index, left in enumerate(ordered):
+        for right in ordered[left_index + 1 :]:
+            if right[0] >= left[1]:
+                break
+            raise TypeError("prediction spans cannot overlap")
+
+
+def load_predictions(
+    path: str | Path, *, allow_invalid: bool = False
+) -> dict[str, list[Span]]:
     """Load ``{"id": ..., "spans": [...]}`` JSONL predictions."""
     source = Path(path)
     try:
@@ -211,12 +245,27 @@ def load_predictions(path: str | Path) -> dict[str, list[Span]]:
                 raise TypeError("expected an object with an id string")
             if value["id"] in predictions:
                 raise TypeError(f"duplicate prediction id: {value['id']}")
+            raw_spans = value.get("spans", [])
+            if not isinstance(raw_spans, list):
+                raise TypeError("prediction spans must be an array")
             spans: list[Span] = []
-            for span in value.get("spans", []):
-                label = str(span.get("entity_type", span.get("label", "")))
-                if not label:
+            for span in raw_spans:
+                if not isinstance(span, dict):
+                    raise TypeError("every prediction span must be an object")
+                label_value = span.get("entity_type", span.get("label"))
+                if not isinstance(label_value, str) or not label_value.strip():
                     raise TypeError("prediction span lacks an entity_type")
-                spans.append((int(span["start"]), int(span["end"]), label))
+                spans.append(
+                    (
+                        _prediction_offset(
+                            span["start"], "start", allow_invalid=allow_invalid
+                        ),
+                        _prediction_offset(span["end"], "end", allow_invalid=allow_invalid),
+                        label_value.strip(),
+                    )
+                )
+            if not allow_invalid:
+                _validate_prediction_collection(spans)
             predictions[value["id"]] = spans
         except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
             raise ScoringError(
@@ -251,6 +300,7 @@ def score_corpus(
     byte_offsets: bool = False,
     allow_partial: bool = False,
     allow_invalid: bool = False,
+    allow_invalid_predictions: bool = False,
 ) -> ScoreReport:
     if match not in {"strict", "overlap"}:
         raise ScoringError(f"unsupported match mode: {match}")
@@ -258,10 +308,15 @@ def score_corpus(
     if not validation.valid and not allow_invalid:
         raise CorpusIntegrityError(validation)
     config, split_records, _manifest = load_corpus(directory)
+    configured_labels = {label.name for label in config.labels}
+    family_plugin = {family.name: family.plugin for family in config.families}
+    family_role = {family.name: family.role for family in config.families}
     rows = [
         record for split in ("train", "eval", "holdout") for record in split_records[split]
     ]
-    predictions = load_predictions(predictions_path)
+    predictions = load_predictions(
+        predictions_path, allow_invalid=allow_invalid_predictions
+    )
     known_ids = {record.case_id for record in rows}
     unknown = sorted(set(predictions) - known_ids)
     if unknown and not allow_partial:
@@ -281,6 +336,7 @@ def score_corpus(
     records_without = 0
     triggered_by_family: dict[str, int] = defaultdict(int)
     scored_by_family: dict[str, int] = defaultdict(int)
+    conflict_outcomes: Counter[str] = Counter()
 
     for record in rows:
         if record.case_id in predictions:
@@ -292,7 +348,43 @@ def score_corpus(
                 continue
             records_without += 1
             spans = []
+        if not allow_invalid_predictions:
+            for start, end, label in spans:
+                if end > len(record.text):
+                    raise ScoringError(
+                        f"prediction span [{start}, {end}) exceeds record "
+                        f"{record.case_id} length {len(record.text)}"
+                    )
+                if label not in configured_labels:
+                    raise ScoringError(
+                        f"prediction for record {record.case_id} uses unconfigured "
+                        f"label {label!r}"
+                    )
         gold = [(a.start, a.end, a.entity_type) for a in record.annotations]
+        if (
+            family_plugin.get(record.family) == "cue_shape_conflict"
+            and len(gold) == 1
+        ):
+            conflict_outcomes["total"] += 1
+            gold_span = gold[0]
+            if any(
+                predicted[2] == gold_span[2]
+                and _span_targets_gold(gold_span, predicted, match)
+                for predicted in spans
+            ):
+                conflict_outcomes["gold"] += 1
+            else:
+                shape_hint = record.metadata.get("shape_hint_label")
+                if isinstance(shape_hint, str) and any(
+                    predicted[2] == shape_hint
+                    and _span_targets_gold(gold_span, predicted, match)
+                    for predicted in spans
+                ):
+                    conflict_outcomes["shape_hint"] += 1
+                elif spans:
+                    conflict_outcomes["other_error"] += 1
+                else:
+                    conflict_outcomes["abstention"] += 1
         tp, false_positives, false_negatives = _match_spans(gold, spans, match)
         scored_by_family[record.family] += 1
         if spans:
@@ -328,8 +420,6 @@ def score_corpus(
     label_f1_values = [metrics["f1"] for metrics in per_label.values()]
     macro_f1 = round(sum(label_f1_values) / len(label_f1_values), 4) if label_f1_values else 0.0
 
-    family_plugin = {family.name: family.plugin for family in config.families}
-    family_role = {family.name: family.role for family in config.families}
     per_family = {
         name: _prf(*values) for name, values in sorted(counters["family"].items())
     }
@@ -357,9 +447,20 @@ def score_corpus(
         diagnostics["cue_dependence"] = round(cued_recall - cue_free_recall, 4)
         diagnostics["cued_recall"] = cued_recall
         diagnostics["cue_free_recall"] = cue_free_recall
-    conflict_recall = _group_recall({"cue_shape_conflict"})
-    if conflict_recall is not None:
-        diagnostics["morphology_dependence"] = round(1 - conflict_recall, 4)
+    conflict_total = conflict_outcomes["total"]
+    if conflict_total:
+        diagnostics["conflict_gold_recall"] = round(
+            conflict_outcomes["gold"] / conflict_total, 4
+        )
+        diagnostics["shape_hint_substitution_rate"] = round(
+            conflict_outcomes["shape_hint"] / conflict_total, 4
+        )
+        diagnostics["other_error_rate"] = round(
+            conflict_outcomes["other_error"] / conflict_total, 4
+        )
+        diagnostics["abstention_rate"] = round(
+            conflict_outcomes["abstention"] / conflict_total, 4
+        )
     narrative_recall = _group_recall({"narrative"})
     for plugin_name, key in (("ocr_noise", "ocr_recall"), ("spoken", "spoken_recall")):
         recall = _group_recall({plugin_name})
@@ -380,8 +481,12 @@ def score_corpus(
     notes = {
         "cue_dependence": "cued recall minus cue-free recall; high means the detector "
         "needs a cue phrase",
-        "morphology_dependence": "1 - recall on cue/shape conflicts; high means shape "
-        "beats the labeled heading",
+        "conflict_gold_recall": "share of cue/shape conflicts assigned the gold label",
+        "shape_hint_substitution_rate": "share of cue/shape conflicts assigned the "
+        "stored shape-hint label instead of the gold label",
+        "other_error_rate": "share of cue/shape conflicts with predictions that are "
+        "neither the gold label nor a shape-hint substitution",
+        "abstention_rate": "share of cue/shape conflicts with no predicted spans",
         "over_trigger_per_hard_negative_family": "share of hard negatives with any "
         "predicted span",
     }

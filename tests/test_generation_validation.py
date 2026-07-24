@@ -4,8 +4,17 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from piicorpus.config import load_config
-from piicorpus.generator import GENERATOR_VERSION, generate, generate_records
+from piicorpus.generator import (
+    GENERATOR_VERSION,
+    _spell,
+    _value,
+    generate,
+    generate_records,
+    register_value_plugin,
+)
 from piicorpus.manifest import load_corpus, sha256_file, write_corpus
 from piicorpus.semantics import is_contrastive_evidence
 from piicorpus.validators import validate_corpus
@@ -43,6 +52,43 @@ def test_different_seed_changes_records_but_preserves_invariants(
     assert validate_corpus(second, strict=True).valid
 
 
+def test_spoken_transform_collisions_are_retried_before_acceptance(
+    demo_config_path: Path,
+) -> None:
+    def case_variant_plugin(
+        _rng: object, _label: object, _split: str, index: int
+    ) -> str:
+        return "SYN-A" if index % 2 == 0 else "SYN-a"
+
+    plugin_name = "test_spoken_case_collision"
+    register_value_plugin(plugin_name, case_variant_plugin, replace=True)
+    config = load_config(demo_config_path)
+    label = replace(config.labels[0], plugin=plugin_name)
+    seen: set[str] = set()
+    assert (
+        _value(
+            config,
+            label,
+            "train",
+            0,
+            "spoken",
+            seen,
+            transform=_spell,
+        )
+        == "synthetic a"
+    )
+    with pytest.raises(ValueError, match="could not generate a unique value"):
+        _value(
+            config,
+            label,
+            "train",
+            1,
+            "spoken",
+            seen,
+            transform=_spell,
+        )
+
+
 def test_manifest_hashes_match_every_emitted_file(generated_demo: Path) -> None:
     manifest = json.loads((generated_demo / "manifest.json").read_text(encoding="utf-8"))
     for relative, declared in manifest["files"].items():
@@ -68,6 +114,54 @@ def test_hard_negative_ratio_is_enforced(tmp_path: Path, demo_config_path: Path)
     write_corpus(output, stricter, records, generator_version=GENERATOR_VERSION)
     report = validate_corpus(output, strict=True)
     assert any(error.startswith("hard_negative_ratio:") for error in report.errors)
+
+
+def test_within_split_annotation_value_duplicates_are_rejected(
+    generated_demo: Path, tmp_path: Path
+) -> None:
+    config, split_records, manifest = load_corpus(generated_demo)
+    records = {split: list(rows) for split, rows in split_records.items()}
+    candidates = [
+        record
+        for record in records["train"]
+        if len(record.annotations) == 1 and record.family != "cue_shape_conflicts"
+    ]
+    source = candidates[0]
+    source_annotation = source.annotations[0]
+    target = next(
+        record
+        for record in candidates[1:]
+        if record.annotations[0].entity_type == source_annotation.entity_type
+    )
+    target_index = records["train"].index(target)
+    target_annotation = target.annotations[0]
+    prefix = target.text[: target_annotation.start]
+    replacement = source_annotation.text
+    changed_text = prefix + replacement + target.text[target_annotation.end :]
+    changed_annotation = replace(
+        target_annotation,
+        byte_start=len(prefix.encode("utf-8")),
+        byte_end=len((prefix + replacement).encode("utf-8")),
+        end=target_annotation.start + len(replacement),
+        text=replacement,
+    )
+    records["train"][target_index] = replace(
+        target,
+        annotations=(changed_annotation,),
+        text=changed_text,
+    )
+    output = tmp_path / "duplicate-value"
+    write_corpus(
+        output,
+        config,
+        records,
+        generator_version=str(manifest["generator_version"]),
+    )
+    report = validate_corpus(output, strict=True)
+    assert any(
+        error.startswith("within_split_value_uniqueness:")
+        for error in report.errors
+    )
 
 
 def test_manifest_contains_required_claim_boundary(generated_demo: Path) -> None:

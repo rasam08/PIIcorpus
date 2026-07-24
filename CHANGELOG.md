@@ -4,6 +4,21 @@
 
 No changes yet.
 
+## 0.2.1 - 2026-07-23
+
+- Changed the learnability probe verdict to class-balanced accuracy with per-split raw and balanced
+  majority baselines, macro-F1, and a fixed baseline margin, preventing class priors alone from
+  producing a shortcut finding.
+- Replaced the ambiguous `morphology_dependence` score with conflict gold recall, direct
+  shape-hint substitution, other-error, and abstention rates.
+- Rejected empty or whitespace-only safety prefixes and reserved domains in both TOML and
+  normalized corpus snapshots.
+- Enforced annotation-value uniqueness after OCR/spoken transformations and independently during
+  corpus validation.
+- Made prediction spans fail-closed by default for invalid offsets, labels, duplicates, and
+  overlaps, with `--allow-invalid-predictions` as an explicit forensic override.
+- Updated the supported-version policy to refer to the latest published release.
+
 ## 0.2.0 - 2026-07-23
 
 Byte-determinism break: the generator version is now 2.0.0 and the configuration schema gained

@@ -21,6 +21,7 @@ from .skeletons import get_family
 GENERATOR_VERSION = "2.0.0"
 
 ValueGenerator = Callable[[random.Random, LabelConfig, str, int], str]
+ValueTransform = Callable[[str], str]
 _VALUE_PLUGINS: dict[str, ValueGenerator] = {}
 
 
@@ -153,6 +154,7 @@ def _value(
     seen: set[str],
     *,
     plugin_label: LabelConfig | None = None,
+    transform: ValueTransform | None = None,
 ) -> str:
     try:
         plugin = _VALUE_PLUGINS[label.plugin]
@@ -161,9 +163,11 @@ def _value(
     for attempt in range(100):
         rng = _rng(config, split, family, label.name, index, "value", attempt)
         candidate = plugin(rng, plugin_label or label, split, index + attempt * 97)
-        if candidate not in seen:
+        surfaced = transform(candidate) if transform is not None else candidate
+        if candidate not in seen and surfaced not in seen:
             seen.add(candidate)
-            return candidate
+            seen.add(surfaced)
+            return surfaced
     raise ValueError(f"could not generate a unique value for {label.name}")
 
 
@@ -275,6 +279,14 @@ def _positive_record(
         )
         metadata["contrastive"] = True
         metadata["shape_hint_label"] = hint_label.name
+    value_transform: ValueTransform | None = None
+    if family.plugin == "spoken":
+        value_transform = _spell
+    elif family.plugin == "ocr_noise":
+        def transform_ocr(candidate: str) -> str:
+            return _ocr_noise(candidate, cycle)
+
+        value_transform = transform_ocr
     value = _value(
         config,
         label,
@@ -283,14 +295,8 @@ def _positive_record(
         family.name,
         seen_values,
         plugin_label=plugin_label,
+        transform=value_transform,
     )
-
-    if family.plugin == "spoken":
-        value = _spell(value)
-        seen_values.add(value)
-    elif family.plugin == "ocr_noise":
-        value = _ocr_noise(value, cycle)
-        seen_values.add(value)
 
     fields: dict[str, str] = {
         "cue": cue,

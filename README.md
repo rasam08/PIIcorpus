@@ -13,8 +13,8 @@ Its focus is structural quality, not volume:
 > PIIcorpus does not merely generate synthetic examples. It checks whether its generated splits
 > are structurally independent, exposes common synthetic-corpus failure modes — contamination,
 > template memorization, morphology-to-label and shape-to-entity shortcuts, cue shortcuts,
-> within-split redundancy, insufficient diversity, and generator fingerprints — and proves
-> shortcuts empirically with a trivial-model learnability probe. The same audit runs on external
+> within-split redundancy, insufficient diversity, and generator fingerprints — and tests for
+> learnable surface signal with a class-balanced trivial-model probe. The same audit runs on external
 > NER datasets, and a scoring harness turns detector predictions into mechanism diagnostics.
 
 The project generates, audits, and scores against corpora. It does not train, evaluate, select,
@@ -119,7 +119,7 @@ PASS       shape_entity_shortcut     count=0  measured=0.8161 threshold=0.9
 PASS       cue_label_shortcuts       count=59 measured=0.3151 threshold=0.45
 PASS       intra_split_redundancy    count=0  measured=0.0    threshold=0.05
 WARN       value_shared_affix        count=4  measured=11     threshold=6
-PASS       probe_kind_separability   count=2  measured=0.8671 threshold=0.9
+PASS       probe_kind_separability   count=2  measured=0.8554 threshold=0.9
 PASS       threshold_strictness      count=0
 UNMEASURED same_generator_holdout_dependence
 ```
@@ -132,8 +132,9 @@ output are available for automation and review. The full risk catalog is in
 [`docs/FAILURE_MODEL.md`](docs/FAILURE_MODEL.md).
 
 `--probe` additionally trains a deterministic stdlib trivial model (hashed character n-grams and
-logistic regression) and reports whether kind, value-to-label, or context-to-label prediction is
-trivially learnable — the empirical ground truth the structural checks approximate.
+logistic regression) and reports balanced accuracy, macro-F1, raw accuracy, and split-specific
+baselines for kind, value-to-label, and context-to-label prediction. A failure requires balanced
+accuracy above both the configured ceiling and the majority-predictor baseline margin.
 
 > A holdout produced by the same generator is useful for regression testing but is not an
 > independent generalization test.
@@ -163,7 +164,10 @@ the engineered families:
 ```text
 diagnostics:
   cue_dependence                    0.04   (cued recall minus cue-free recall)
-  morphology_dependence             0.0    (1 - recall on cue/shape conflicts)
+  conflict_gold_recall               1.0
+  shape_hint_substitution_rate       0.0
+  other_error_rate                   0.0
+  abstention_rate                    0.0
   spoken_recall                     0.0
   over_trigger_per_hard_negative_family {'hard_negative_near_misses': 1.0, ...}
 ```

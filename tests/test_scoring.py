@@ -48,7 +48,10 @@ def test_perfect_predictions_score_one(generated_demo: Path, tmp_path: Path) -> 
     assert report.macro_f1 == 1.0
     assert report.records_without_predictions == 0
     assert report.diagnostics["cue_dependence"] == 0.0
-    assert report.diagnostics["morphology_dependence"] == 0.0
+    assert report.diagnostics["conflict_gold_recall"] == 1.0
+    assert report.diagnostics["shape_hint_substitution_rate"] == 0.0
+    assert report.diagnostics["other_error_rate"] == 0.0
+    assert report.diagnostics["abstention_rate"] == 0.0
     over_trigger = report.diagnostics["over_trigger_per_hard_negative_family"]
     assert all(value == 0.0 for value in over_trigger.values())
 
@@ -80,6 +83,108 @@ def test_regex_detector_diagnostics_expose_over_triggering(
     # The spoken family spells values out, so a shape regex misses them.
     assert report.diagnostics["spoken_recall"] == 0.0
     assert report.diagnostics["cue_dependence"] is not None
+
+
+def test_conflict_diagnostics_distinguish_shape_substitution_from_abstention(
+    generated_demo: Path, tmp_path: Path
+) -> None:
+    config, split_records, _manifest = load_corpus(generated_demo)
+    family_plugin = {family.name: family.plugin for family in config.families}
+    conflicts = [
+        record
+        for records in split_records.values()
+        for record in records
+        if family_plugin[record.family] == "cue_shape_conflict"
+    ]
+    shape_predictions = tmp_path / "shape-hints.jsonl"
+    _write_predictions(
+        shape_predictions,
+        [
+            {
+                "id": record.case_id,
+                "spans": [
+                    {
+                        "start": record.annotations[0].start,
+                        "end": record.annotations[0].end,
+                        "entity_type": record.metadata["shape_hint_label"],
+                    }
+                ],
+            }
+            for record in conflicts
+        ],
+    )
+    shape_report = score_corpus(generated_demo, shape_predictions, allow_partial=True)
+    assert shape_report.diagnostics["conflict_gold_recall"] == 0.0
+    assert shape_report.diagnostics["shape_hint_substitution_rate"] == 1.0
+    assert shape_report.diagnostics["other_error_rate"] == 0.0
+    assert shape_report.diagnostics["abstention_rate"] == 0.0
+
+    empty_predictions = tmp_path / "abstentions.jsonl"
+    _write_predictions(
+        empty_predictions,
+        [{"id": record.case_id, "spans": []} for record in conflicts],
+    )
+    empty_report = score_corpus(generated_demo, empty_predictions, allow_partial=True)
+    assert empty_report.diagnostics["conflict_gold_recall"] == 0.0
+    assert empty_report.diagnostics["shape_hint_substitution_rate"] == 0.0
+    assert empty_report.diagnostics["other_error_rate"] == 0.0
+    assert empty_report.diagnostics["abstention_rate"] == 1.0
+
+
+@pytest.mark.parametrize(
+    "spans",
+    [
+        [{"start": -1, "end": 1}],
+        [{"start": 2, "end": 2}],
+        [{"start": 0, "end": 100_000}],
+        [{"start": 0, "end": 2}, {"start": 0, "end": 2}],
+        [{"start": 0, "end": 2}, {"start": 1, "end": 3}],
+    ],
+)
+def test_invalid_prediction_spans_are_rejected(
+    generated_demo: Path,
+    tmp_path: Path,
+    spans: list[dict[str, int]],
+) -> None:
+    config, split_records, _manifest = load_corpus(generated_demo)
+    record = split_records["train"][0]
+    rows = [
+        {
+            "id": record.case_id,
+            "spans": [
+                {**span, "entity_type": config.labels[0].name} for span in spans
+            ],
+        }
+    ]
+    predictions = tmp_path / "invalid.jsonl"
+    _write_predictions(predictions, rows)
+    with pytest.raises(ScoringError):
+        score_corpus(generated_demo, predictions, allow_partial=True)
+
+
+def test_forensic_prediction_mode_scores_malformed_spans(
+    generated_demo: Path, tmp_path: Path
+) -> None:
+    config, split_records, _manifest = load_corpus(generated_demo)
+    record = split_records["train"][0]
+    label = config.labels[0].name
+    spans = [
+        {"start": -1, "end": 0, "entity_type": label},
+        {"start": 2, "end": 2, "entity_type": label},
+        {"start": 0, "end": 100_000, "entity_type": label},
+        {"start": 0, "end": 2, "entity_type": label},
+        {"start": 1, "end": 3, "entity_type": label},
+        {"start": 0, "end": 2, "entity_type": label},
+    ]
+    predictions = tmp_path / "forensic.jsonl"
+    _write_predictions(predictions, [{"id": record.case_id, "spans": spans}])
+    report = score_corpus(
+        generated_demo,
+        predictions,
+        allow_partial=True,
+        allow_invalid_predictions=True,
+    )
+    assert report.overall["fp"] == len(spans)
 
 
 def test_unknown_ids_error_unless_partial(generated_demo: Path, tmp_path: Path) -> None:

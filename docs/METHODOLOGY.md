@@ -18,12 +18,14 @@ shared pools partitioned by interleaving: the sorted pool is dealt out modulo th
 no split receives a contiguous (for example alphabetical or chronological) range. Splits stay
 disjoint and avoid that order-driven shift, but arbitrary user-supplied pools are not claimed to
 be statistically identical. Template banks are still sliced per split, and a global uniqueness
-pool guarantees that no annotated or hard-negative value repeats anywhere in the corpus.
+pool checks the final surfaced form after OCR or spoken transformations and guarantees that no
+annotated or hard-negative value repeats anywhere in the corpus.
 
-Validation independently derives and rejects collisions in case IDs, values, personas,
-organizations, template IDs, normalized template skeletons, and family/index namespaces. Isolation
-is checked from the JSONL records rather than inferred from the generator implementation. File
-hashes and manifest counts are also recalculated.
+Validation independently rejects repeated annotation values within a split and cross-split
+collisions in values, personas, organizations, template IDs, normalized template skeletons, and
+family/index namespaces. It also derives case-ID and namespace uniqueness. Isolation is checked
+from the JSONL records rather than inferred from the generator implementation. File hashes and
+manifest counts are also recalculated.
 
 ## Shortcut resistance
 
@@ -48,11 +50,13 @@ coverage, split contamination, and kind-predictive lexical markers.
 Structural checks are heuristics for a single underlying question: could a trivial model pass this
 corpus by exploiting surface signal? The probe answers it empirically. Hashed character
 3-5-gram features feed one-vs-rest logistic regression trained by plain SGD — standard library
-only, fixed seed, byte-deterministic — on the train split, and accuracy on the held splits is
-compared with configured ceilings for kind separability, value-only label prediction, and
-masked-context label prediction. The probe is opt-in because the audit is otherwise
-detector-independent; its verdict is one-sided (high accuracy proves a shortcut; low accuracy
-proves nothing about difficulty).
+only, fixed seed, byte-deterministic — on the train split. Held-split balanced accuracy is compared
+with configured ceilings and a fixed 0.05 margin above each split's balanced
+majority-predictor baseline for kind separability, value-only label prediction, and masked-context
+label prediction. Raw accuracy, raw majority baselines, balanced accuracy, macro-F1, and failing
+splits are reported. The probe is opt-in because the audit is otherwise detector-independent; a
+failure is evidence of learnable character-level surface signal beyond class priors, not proof of
+its cause. A passing result proves nothing about difficulty.
 
 ## Negative coverage
 

@@ -27,14 +27,17 @@ support a conclusion, including independent generalization from a same-generator
 ## Scoring boundary
 
 Scores from `piicorpus score` on synthetic data demonstrate *mechanism* failures: cue dependence
-(cued recall versus cue-free recall), morphology dependence (accuracy on cue/shape conflicts),
-over-triggering on hard negatives, and noise robustness gaps. They never demonstrate real-world
-adequacy, and a perfect score on a synthetic corpus is not evidence of deployment readiness.
+(cued recall versus cue-free recall), gold recall on cue/shape conflicts, direct substitution of
+the stored shape-hint label, other conflict errors, abstention, over-triggering on hard negatives,
+and noise robustness gaps. They never demonstrate real-world adequacy, and a perfect score on a
+synthetic corpus is not evidence of deployment readiness.
 
 ## Probe boundary
 
-The learnability probe's verdict is one-sided. High trivial-model accuracy proves the corpus
-contains surface shortcuts; low accuracy does not prove the corpus is hard, diverse, or realistic.
+The learnability probe reports class-balanced held-split metrics and split-specific baselines. A
+failure is evidence that character n-grams carry learnable signal beyond majority-class priors,
+but it does not prove what caused that signal or that the corpus is unusable. A passing result does
+not prove the corpus is hard, diverse, or realistic.
 
 The lexical generator-fingerprint check measures alphabetic 1-grams, 2-grams, and 3-grams.
 Numeric-only, symbolic, and mixed alphanumeric fingerprints are not measured by that check; the

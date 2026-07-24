@@ -75,6 +75,13 @@ counted; `--allow-partial` restricts scoring to the records present instead. `--
 requires exact boundaries and label; `--match overlap` accepts intersection-over-union of at
 least 0.5 with a matching label.
 
+Prediction input is strict by default: offsets must be integers with
+`0 <= start < end <= len(text)`, labels must be configured for the corpus, and exact duplicate or
+overlapping prediction spans are rejected. `--allow-invalid-predictions` preserves malformed
+code-point spans for forensic scoring, where they normally count as false positives. Byte offsets
+must still fall on UTF-8 character boundaries because otherwise they cannot be converted to code
+points.
+
 ## Manifest
 
 `manifest.json` contains schema and generator versions, normalized configuration digest, seed,

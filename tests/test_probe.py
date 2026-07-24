@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from piicorpus.failure_model import audit_corpus
+from piicorpus.probe import _run_task, _task_finding
 
 PROBE_RISKS = (
     "probe_kind_separability",
@@ -29,6 +30,25 @@ def test_probe_measures_demo_learnability_deterministically(generated_demo: Path
             assert finding.status in {"PASS", "FAIL"}
             assert finding.measured is not None
             assert finding.details["accuracy_per_split"]
-    kind = next(f for f in first.findings if f.risk == "probe_kind_separability")
-    # The measured accuracy must beat guessing before it can mean anything.
-    assert kind.details["majority_baseline"] < 1.0
+            assert finding.details["balanced_accuracy_per_split"]
+            assert finding.details["majority_baseline_per_split"]
+            assert finding.details["balanced_majority_baseline_per_split"]
+
+
+def test_probe_does_not_treat_majority_priors_as_a_shortcut() -> None:
+    per_split = {
+        "train": [({}, 0)] * 95 + [({}, 1)] * 5,
+        "eval": [({}, 0)] * 95 + [({}, 1)] * 5,
+    }
+    metrics = _run_task(per_split, "train", 2)
+    finding = _task_finding(
+        "test_probe",
+        metrics,
+        0.90,
+        source="test",
+        description="classify examples",
+    )
+    assert finding.details["accuracy_per_split"]["eval"] == 0.95
+    assert finding.details["majority_baseline_per_split"]["eval"] == 0.95
+    assert finding.details["balanced_accuracy_per_split"]["eval"] == 0.5
+    assert finding.status == "PASS"

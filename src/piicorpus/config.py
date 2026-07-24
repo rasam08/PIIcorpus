@@ -219,6 +219,33 @@ def _surfaces(raw: dict[str, Any]) -> SurfacesConfig:
     )
 
 
+def _safety(raw: dict[str, Any]) -> SafetyConfig:
+    domain_values = tuple(
+        str(value).strip().lower()
+        for value in _required(raw, "reserved_email_domains", (list, tuple))
+    )
+    if any(not value for value in domain_values):
+        raise ConfigError("safety.reserved_email_domains entries cannot be empty")
+    prefix_values = tuple(
+        str(value)
+        for value in _required(raw, "allowed_value_prefixes", (list, tuple))
+    )
+    if any(not value.strip() for value in prefix_values):
+        raise ConfigError("safety.allowed_value_prefixes entries cannot be empty")
+    forbidden_raw = raw.get("forbidden_terms", [])
+    if not isinstance(forbidden_raw, (list, tuple)):
+        raise ConfigError("safety.forbidden_terms must be an array")
+    mode = str(raw.get("mode", "either"))
+    if mode not in SAFETY_MODES:
+        raise ConfigError(f"safety.mode must be one of {', '.join(SAFETY_MODES)}")
+    return SafetyConfig(
+        reserved_email_domains=domain_values,
+        allowed_value_prefixes=prefix_values,
+        forbidden_terms=tuple(str(value) for value in forbidden_raw),
+        mode=mode,
+    )
+
+
 def _probe(raw: Any) -> ProbeConfig:
     if not isinstance(raw, dict):
         raise ConfigError("audit.probe must be a table")
@@ -461,20 +488,9 @@ def load_config(path: str | Path) -> CorpusConfig:
             ),
             probe=_probe(audit_raw.get("probe", {})),
         ),
-        safety=SafetyConfig(
-            reserved_email_domains=tuple(
-                str(v).lower() for v in _required(safety_raw, "reserved_email_domains", list)
-            ),
-            allowed_value_prefixes=tuple(
-                str(v) for v in _required(safety_raw, "allowed_value_prefixes", list)
-            ),
-            forbidden_terms=tuple(str(v) for v in safety_raw.get("forbidden_terms", [])),
-            mode=str(safety_raw.get("mode", "either")),
-        ),
+        safety=_safety(safety_raw),
         surfaces=surfaces,
     )
-    if config.safety.mode not in SAFETY_MODES:
-        raise ConfigError(f"safety.mode must be one of {', '.join(SAFETY_MODES)}")
     if config.seed < 0:
         raise ConfigError("seed must be non-negative")
     if min(asdict(config.diversity).values()) < 1:
@@ -538,12 +554,7 @@ def config_from_dict(value: dict[str, Any]) -> CorpusConfig:
             },
             probe=ProbeConfig(**value["audit"].get("probe", {})),
         ),
-        safety=SafetyConfig(
-            reserved_email_domains=tuple(value["safety"]["reserved_email_domains"]),
-            allowed_value_prefixes=tuple(value["safety"]["allowed_value_prefixes"]),
-            forbidden_terms=tuple(value["safety"]["forbidden_terms"]),
-            mode=str(value["safety"].get("mode", "either")),
-        ),
+        safety=_safety(value["safety"]),
         surfaces=SurfacesConfig(
             personas=tuple(value.get("surfaces", {}).get("personas", DEFAULT_PERSONAS)),
             organizations=tuple(

@@ -164,6 +164,11 @@ def _parser() -> argparse.ArgumentParser:
         help="score only records present in the predictions file",
     )
     score_parser.add_argument(
+        "--allow-invalid-predictions",
+        action="store_true",
+        help="score malformed prediction spans for forensic analysis instead of rejecting them",
+    )
+    score_parser.add_argument(
         "--format", choices=("json", "text", "markdown"), default="text"
     )
     score_parser.add_argument("--out")
@@ -293,12 +298,19 @@ def _run(args: argparse.Namespace) -> int:
         return EXIT_OK if result["integrity_valid"] else EXIT_FINDINGS
 
     if args.command == "score":
+        if args.allow_invalid_predictions:
+            print(
+                "WARNING: malformed predictions are being scored for forensics; "
+                "diagnostics may reflect adapter errors.",
+                file=sys.stderr,
+            )
         score_report = score_corpus(
             args.directory,
             args.predictions,
             match=args.match,
             byte_offsets=args.byte_offsets,
             allow_partial=args.allow_partial,
+            allow_invalid_predictions=args.allow_invalid_predictions,
         )
         rendered = score_report.render(args.format)
         if args.out:

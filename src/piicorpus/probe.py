@@ -3,10 +3,11 @@
 The structural audit checks approximate one question — would a trivial model
 ace this corpus by exploiting shortcuts? The probe answers it directly: hashed
 character 3-5-gram features feed one-vs-rest logistic regression trained by
-plain SGD (stdlib only, fixed seed, deterministic), and accuracy on the held
-splits is compared against configured ceilings. High probe accuracy does not
-prove the corpus useless; it proves a trivial model finds enough surface signal
-to pass, which is exactly what a shortcut is.
+plain SGD (stdlib only, fixed seed, deterministic). Balanced accuracy on held
+splits is compared against configured ceilings and a split-specific
+majority-predictor baseline. A failing probe is evidence that a trivial model
+finds learnable surface signal beyond class priors; it is not proof of the
+signal's cause or of real-world usefulness.
 """
 
 from __future__ import annotations
@@ -24,8 +25,10 @@ _EPOCHS = 5
 _LEARNING_RATE = 0.5
 _SEED = 20260723
 _MINIMUM_TRAIN_EXAMPLES = 10
+_BASELINE_MARGIN = 0.05
 
 FeatureVector = dict[int, float]
+ProbeMetrics = dict[str, float]
 
 
 def _features(text: str) -> FeatureVector:
@@ -81,30 +84,70 @@ def _predict(
     return best_class
 
 
-def _accuracy(
+def _classification_metrics(
     weights: list[dict[int, float]],
     bias: list[float],
     examples: Sequence[tuple[FeatureVector, int]],
-) -> float:
+) -> ProbeMetrics:
     if not examples:
-        return 0.0
-    correct = sum(
-        _predict(weights, bias, features) == target for features, target in examples
+        return {
+            "accuracy": 0.0,
+            "balanced_accuracy": 0.0,
+            "balanced_majority_baseline": 0.0,
+            "macro_f1": 0.0,
+            "majority_baseline": 0.0,
+        }
+    targets = [target for _features_, target in examples]
+    predictions = [_predict(weights, bias, features) for features, _target in examples]
+    target_counts: Counter[int] = Counter(targets)
+    correct_counts: Counter[int] = Counter(
+        target for target, predicted in zip(targets, predictions, strict=True)
+        if target == predicted
     )
-    return correct / len(examples)
+    balanced_accuracy = sum(
+        correct_counts[target] / count for target, count in target_counts.items()
+    ) / len(target_counts)
+    classes = sorted(set(targets) | set(predictions))
+    f1_values: list[float] = []
+    for cls in classes:
+        true_positives = sum(
+            target == predicted == cls
+            for target, predicted in zip(targets, predictions, strict=True)
+        )
+        false_positives = sum(
+            target != cls and predicted == cls
+            for target, predicted in zip(targets, predictions, strict=True)
+        )
+        false_negatives = sum(
+            target == cls and predicted != cls
+            for target, predicted in zip(targets, predictions, strict=True)
+        )
+        denominator = 2 * true_positives + false_positives + false_negatives
+        f1_values.append(2 * true_positives / denominator if denominator else 0.0)
+    accuracy = sum(
+        target == predicted
+        for target, predicted in zip(targets, predictions, strict=True)
+    ) / len(targets)
+    return {
+        "accuracy": round(accuracy, 4),
+        "balanced_accuracy": round(balanced_accuracy, 4),
+        "balanced_majority_baseline": round(1.0 / len(target_counts), 4),
+        "macro_f1": round(sum(f1_values) / len(f1_values), 4),
+        "majority_baseline": round(max(target_counts.values()) / len(targets), 4),
+    }
 
 
 def _run_task(
     per_split: dict[str, list[tuple[FeatureVector, int]]],
     train_split: str,
     class_count: int,
-) -> dict[str, float] | None:
+) -> dict[str, ProbeMetrics] | None:
     train_examples = per_split.get(train_split, [])
     if len(train_examples) < _MINIMUM_TRAIN_EXAMPLES or class_count < 2:
         return None
     weights, bias = _train(train_examples, class_count)
     return {
-        split: round(_accuracy(weights, bias, examples), 4)
+        split: _classification_metrics(weights, bias, examples)
         for split, examples in per_split.items()
         if split != train_split and examples
     }
@@ -112,33 +155,65 @@ def _run_task(
 
 def _task_finding(
     risk: str,
-    accuracies: dict[str, float] | None,
+    metrics_by_split: dict[str, ProbeMetrics] | None,
     ceiling: float,
     *,
     source: str,
     description: str,
     **details: object,
 ) -> Finding:
-    if accuracies is None or not accuracies:
+    if metrics_by_split is None or not metrics_by_split:
         return Finding(
             risk=risk,
             status="UNMEASURED",
             count=None,
             reason="not enough examples, classes, or held splits to run this probe task",
         )
-    worst = max(accuracies.values())
-    failed = worst > ceiling
+    failing_splits = sorted(
+        split
+        for split, metrics in metrics_by_split.items()
+        if metrics["balanced_accuracy"] > ceiling
+        and metrics["balanced_accuracy"]
+        > metrics["balanced_majority_baseline"] + _BASELINE_MARGIN
+    )
+    worst = max(metrics["balanced_accuracy"] for metrics in metrics_by_split.values())
+    failed = bool(failing_splits)
     return Finding(
         risk=risk,
         status="FAIL" if failed else "PASS",
-        count=len(accuracies),
+        count=len(metrics_by_split),
         reason=(
-            f"a trivial character-n-gram model can {description} above the ceiling; "
-            "the corpus contains a surface shortcut"
+            f"a trivial character-n-gram model can {description} with balanced accuracy "
+            "above both the ceiling and the majority-predictor baseline margin; this is "
+            "evidence of learnable surface signal beyond class priors"
             if failed
-            else f"a trivial character-n-gram model cannot {description} above the ceiling"
+            else f"a trivial character-n-gram model cannot {description} with balanced "
+            "accuracy above both the ceiling and the majority-predictor baseline margin"
         ),
-        details={"accuracy_per_split": accuracies, **details},
+        details={
+            "accuracy_per_split": {
+                split: metrics["accuracy"] for split, metrics in metrics_by_split.items()
+            },
+            "balanced_accuracy_per_split": {
+                split: metrics["balanced_accuracy"]
+                for split, metrics in metrics_by_split.items()
+            },
+            "balanced_majority_baseline_per_split": {
+                split: metrics["balanced_majority_baseline"]
+                for split, metrics in metrics_by_split.items()
+            },
+            "baseline_margin": _BASELINE_MARGIN,
+            "failing_splits": failing_splits,
+            "macro_f1_per_split": {
+                split: metrics["macro_f1"] for split, metrics in metrics_by_split.items()
+            },
+            "majority_baseline_per_split": {
+                split: metrics["majority_baseline"]
+                for split, metrics in metrics_by_split.items()
+            },
+            "metric": "balanced_accuracy",
+            **details,
+        },
         measured=worst,
         threshold=ceiling,
         threshold_source=source,
@@ -189,14 +264,6 @@ def probe_findings(
         value_examples[split] = value_split
         context_examples[split] = context_split
 
-    kind_totals = Counter(
-        target for examples in kind_examples.values() for _features_, target in examples
-    )
-    majority_baseline = (
-        round(max(kind_totals.values()) / sum(kind_totals.values()), 4)
-        if kind_totals
-        else 0.0
-    )
     return [
         _task_finding(
             "probe_kind_separability",
@@ -204,7 +271,6 @@ def probe_findings(
             max_kind_accuracy,
             source=threshold_source,
             description="separate positives from hard negatives",
-            majority_baseline=majority_baseline,
         ),
         _task_finding(
             "probe_value_label_shortcut",

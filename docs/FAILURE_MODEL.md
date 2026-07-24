@@ -53,8 +53,10 @@ Learnability probe (opt-in, `--probe`):
   train a deterministic stdlib model (hashed character 3-5-grams, one-vs-rest logistic regression
   by SGD, fixed seed) on the train split and score the held splits. The structural checks
   approximate one question — would a trivial model ace this corpus? — and the probe answers it
-  directly. High probe accuracy proves a surface shortcut exists; low probe accuracy does not
-  prove the corpus is hard.
+  directly. Verdicts use balanced accuracy and require both the configured ceiling and a 0.05
+  margin above the split-specific balanced majority-predictor baseline to be exceeded. A failure
+  is evidence of learnable surface signal beyond class priors; it does not prove the signal's
+  cause. A passing result does not prove the corpus is hard.
 
 Safety and spans: malformed spans and unsafe values remain fail-closed checks.
 

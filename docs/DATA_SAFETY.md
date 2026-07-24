@@ -10,6 +10,8 @@ Two safety models are supported, selected by `safety.mode`:
   plugin (the realistic-safe demo).
 - `either` (default): a value passes with either proof.
 
+Empty or whitespace-only entries in `allowed_value_prefixes` and
+`reserved_email_domains` are rejected during both TOML loading and corpus-snapshot loading.
 Safety checks additionally reject credential-shaped strings, private-key markers, non-reserved
 email domains, non-reserved URL hosts, and configured prohibited terms in all record text.
 Example internet names must use RFC 2606 reserved domains.

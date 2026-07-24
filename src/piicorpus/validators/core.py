@@ -112,8 +112,10 @@ def validate_corpus(directory: str | Path, *, strict: bool = False) -> Validatio
     }
     template_by_cell: dict[tuple[str, str], set[str]] = defaultdict(set)
     persona_by_cell: dict[tuple[str, str], set[str]] = defaultdict(set)
+    within_split_value_duplicates: dict[str, dict[str, int]] = {}
 
     for split, rows in split_records.items():
+        annotation_value_counts: Counter[str] = Counter()
         if len(rows) != config.splits[split]:
             fail("split_size", f"{split} has {len(rows)} records, expected {config.splits[split]}")
         derived = _derived_counts(rows)
@@ -184,6 +186,7 @@ def validate_corpus(directory: str | Path, *, strict: bool = False) -> Validatio
                     f"{record.case_id} organization metadata is not rendered",
                 )
             for annotation in record.annotations:
+                annotation_value_counts[annotation.text] += 1
                 if annotation.entity_type not in configured_labels:
                     fail("entity_label", f"{record.case_id} uses an unconfigured entity label")
             try:
@@ -221,7 +224,24 @@ def validate_corpus(directory: str | Path, *, strict: bool = False) -> Validatio
             template_by_cell[(split, record.family)].add(record.template_id)
             if record.persona:
                 persona_by_cell[(split, record.family)].add(record.persona)
+        duplicate_value_count = sum(
+            count > 1 for count in annotation_value_counts.values()
+        )
+        duplicate_occurrences = sum(
+            count - 1 for count in annotation_value_counts.values() if count > 1
+        )
+        within_split_value_duplicates[split] = {
+            "duplicate_occurrences": duplicate_occurrences,
+            "duplicate_values": duplicate_value_count,
+        }
+        if duplicate_occurrences:
+            fail(
+                "within_split_value_uniqueness",
+                f"{split} repeats {duplicate_value_count} annotation value(s) "
+                f"{duplicate_occurrences} extra time(s)",
+            )
 
+    checks["within_split_value_duplicates"] = within_split_value_duplicates
     for dimension, by_split in dimensions.items():
         collisions = _pairwise_collisions(dict(by_split))
         checks[f"cross_split_{dimension}"] = collisions

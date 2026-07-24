@@ -1,6 +1,6 @@
 # Generated demo
 
-`corpus/` is generated from `configs/demo.toml` with PIIcorpus 0.2.0. The corpus manifest records
+`corpus/` is generated from `configs/demo.toml` with PIIcorpus 0.2.1. The corpus manifest records
 its seed, generator version, normalized configuration digest, counts, SHA-256 values, and CC0-1.0
 generated-data license.
 
