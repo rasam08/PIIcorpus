@@ -15,8 +15,9 @@ from __future__ import annotations
 import math
 import random
 import zlib
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from .models import Finding, Record
 
@@ -29,6 +30,15 @@ _BASELINE_MARGIN = 0.05
 
 FeatureVector = dict[int, float]
 ProbeMetrics = dict[str, float]
+
+
+@dataclass(frozen=True, slots=True)
+class ProbeTaskResult:
+    """Measured held splits plus explicit reasons for anything not measurable."""
+
+    metrics_by_split: dict[str, ProbeMetrics]
+    unmeasured_splits: dict[str, str]
+    reason: str | None = None
 
 
 def _features(text: str) -> FeatureVector:
@@ -47,7 +57,7 @@ def _features(text: str) -> FeatureVector:
 def _train(
     examples: Sequence[tuple[FeatureVector, int]], class_count: int
 ) -> tuple[list[dict[int, float]], list[float]]:
-    weights: list[dict[int, float]] = [defaultdict(float) for _ in range(class_count)]
+    weights: list[dict[int, float]] = [{} for _ in range(class_count)]
     bias = [0.0] * class_count
     order = list(range(len(examples)))
     rng = random.Random(_SEED)
@@ -57,8 +67,10 @@ def _train(
         for position in order:
             features, target = examples[position]
             for cls in range(class_count):
+                class_weights = weights[cls]
                 score = bias[cls] + sum(
-                    weights[cls][key] * value for key, value in features.items()
+                    class_weights.get(key, 0.0) * value
+                    for key, value in features.items()
                 )
                 clipped = max(-30.0, min(30.0, score))
                 probability = 1.0 / (1.0 + math.exp(-clipped))
@@ -66,7 +78,9 @@ def _train(
                 if gradient:
                     bias[cls] += rate * gradient
                     for key, value in features.items():
-                        weights[cls][key] += rate * gradient * value
+                        class_weights[key] = (
+                            class_weights.get(key, 0.0) + rate * gradient * value
+                        )
     return weights, bias
 
 
@@ -141,33 +155,78 @@ def _run_task(
     per_split: dict[str, list[tuple[FeatureVector, int]]],
     train_split: str,
     class_count: int,
-) -> dict[str, ProbeMetrics] | None:
+) -> ProbeTaskResult:
     train_examples = per_split.get(train_split, [])
-    if len(train_examples) < _MINIMUM_TRAIN_EXAMPLES or class_count < 2:
-        return None
+    if class_count < 2:
+        return ProbeTaskResult(
+            metrics_by_split={},
+            unmeasured_splits={},
+            reason="the task defines fewer than two classes, so separability is undefined",
+        )
+    if len(train_examples) < _MINIMUM_TRAIN_EXAMPLES:
+        return ProbeTaskResult(
+            metrics_by_split={},
+            unmeasured_splits={},
+            reason=f"the training split has {len(train_examples)} examples; "
+            f"at least {_MINIMUM_TRAIN_EXAMPLES} are required",
+        )
+    observed_train_classes = {target for _features_, target in train_examples}
+    if len(observed_train_classes) < 2:
+        return ProbeTaskResult(
+            metrics_by_split={},
+            unmeasured_splits={},
+            reason="the training split contains fewer than two observed classes, "
+            "so separability is undefined",
+        )
     weights, bias = _train(train_examples, class_count)
-    return {
-        split: _classification_metrics(weights, bias, examples)
-        for split, examples in per_split.items()
-        if split != train_split and examples
-    }
+    metrics_by_split: dict[str, ProbeMetrics] = {}
+    unmeasured_splits: dict[str, str] = {}
+    for split, examples in per_split.items():
+        if split == train_split:
+            continue
+        if not examples:
+            unmeasured_splits[split] = "the held split has no examples"
+            continue
+        if len({target for _features_, target in examples}) < 2:
+            unmeasured_splits[split] = (
+                "the held split contains fewer than two observed classes"
+            )
+            continue
+        metrics_by_split[split] = _classification_metrics(weights, bias, examples)
+    reason = (
+        "no non-empty held splits are available"
+        if not metrics_by_split and not unmeasured_splits
+        else None
+    )
+    return ProbeTaskResult(
+        metrics_by_split=metrics_by_split,
+        unmeasured_splits=unmeasured_splits,
+        reason=reason,
+    )
 
 
 def _task_finding(
     risk: str,
-    metrics_by_split: dict[str, ProbeMetrics] | None,
+    result: ProbeTaskResult,
     ceiling: float,
     *,
     source: str,
     description: str,
     **details: object,
 ) -> Finding:
-    if metrics_by_split is None or not metrics_by_split:
+    metrics_by_split = result.metrics_by_split
+    if not metrics_by_split:
         return Finding(
             risk=risk,
             status="UNMEASURED",
             count=None,
-            reason="not enough examples, classes, or held splits to run this probe task",
+            reason=result.reason
+            or "no held split contains at least two observed classes, "
+            "so separability is undefined",
+            details={
+                "unmeasured_splits": result.unmeasured_splits,
+                **details,
+            },
         )
     failing_splits = sorted(
         split
@@ -212,6 +271,7 @@ def _task_finding(
                 for split, metrics in metrics_by_split.items()
             },
             "metric": "balanced_accuracy",
+            "unmeasured_splits": result.unmeasured_splits,
             **details,
         },
         measured=worst,

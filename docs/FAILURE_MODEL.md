@@ -56,7 +56,8 @@ Learnability probe (opt-in, `--probe`):
   directly. Verdicts use balanced accuracy and require both the configured ceiling and a 0.05
   margin above the split-specific balanced majority-predictor baseline to be exceeded. A failure
   is evidence of learnable surface signal beyond class priors; it does not prove the signal's
-  cause. A passing result does not prove the corpus is hard.
+  cause. A task is `UNMEASURED`, rather than passed, when its training data or every held split
+  contains fewer than two observed classes. A passing result does not prove the corpus is hard.
 
 Safety and spans: malformed spans and unsafe values remain fail-closed checks.
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 
 from piicorpus.failure_model import audit_corpus
-from piicorpus.probe import _run_task, _task_finding
+from piicorpus.probe import _run_task, _task_finding, _train
 
 PROBE_RISKS = (
     "probe_kind_separability",
@@ -52,3 +53,54 @@ def test_probe_does_not_treat_majority_priors_as_a_shortcut() -> None:
     assert finding.details["majority_baseline_per_split"]["eval"] == 0.95
     assert finding.details["balanced_accuracy_per_split"]["eval"] == 0.5
     assert finding.status == "PASS"
+
+
+def test_probe_is_unmeasured_when_training_has_only_one_observed_class() -> None:
+    result = _run_task(
+        {
+            "train": [({}, 1)] * 12,
+            "eval": [({}, 1)] * 4,
+        },
+        "train",
+        2,
+    )
+    finding = _task_finding(
+        "probe_kind_separability",
+        result,
+        0.90,
+        source="test",
+        description="separate positives from hard negatives",
+    )
+    assert finding.status == "UNMEASURED"
+    assert finding.measured is None
+    assert "fewer than two observed classes" in finding.reason
+
+
+def test_probe_is_unmeasured_when_held_split_has_only_one_observed_class() -> None:
+    result = _run_task(
+        {
+            "train": [({}, 0)] * 6 + [({}, 1)] * 6,
+            "eval": [({}, 1)] * 4,
+        },
+        "train",
+        2,
+    )
+    finding = _task_finding(
+        "probe_kind_separability",
+        result,
+        0.90,
+        source="test",
+        description="separate positives from hard negatives",
+    )
+    assert finding.status == "UNMEASURED"
+    assert finding.details["unmeasured_splits"] == {
+        "eval": "the held split contains fewer than two observed classes"
+    }
+
+
+def test_probe_training_uses_plain_weight_dicts() -> None:
+    weights, _bias = _train(
+        [({1: 1.0}, 0), ({2: 1.0}, 1)],
+        2,
+    )
+    assert all(not isinstance(class_weights, defaultdict) for class_weights in weights)

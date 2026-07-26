@@ -54,9 +54,12 @@ only, fixed seed, byte-deterministic — on the train split. Held-split balanced
 with configured ceilings and a fixed 0.05 margin above each split's balanced
 majority-predictor baseline for kind separability, value-only label prediction, and masked-context
 label prediction. Raw accuracy, raw majority baselines, balanced accuracy, macro-F1, and failing
-splits are reported. The probe is opt-in because the audit is otherwise detector-independent; a
-failure is evidence of learnable character-level surface signal beyond class priors, not proof of
-its cause. A passing result proves nothing about difficulty.
+splits are reported. Separability requires at least two observed classes in the training data and
+in a held split. Degenerate held splits are listed under `unmeasured_splits` and excluded from the
+verdict; if training is degenerate or no held split is measurable, the task is `UNMEASURED`. The
+probe is opt-in because the audit is otherwise detector-independent; a failure is evidence of
+learnable character-level surface signal beyond class priors, not proof of its cause. A passing
+result proves nothing about difficulty.
 
 ## Negative coverage
 

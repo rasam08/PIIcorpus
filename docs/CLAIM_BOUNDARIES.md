@@ -37,7 +37,10 @@ synthetic corpus is not evidence of deployment readiness.
 The learnability probe reports class-balanced held-split metrics and split-specific baselines. A
 failure is evidence that character n-grams carry learnable signal beyond majority-class priors,
 but it does not prove what caused that signal or that the corpus is unusable. A passing result does
-not prove the corpus is hard, diverse, or realistic.
+not prove the corpus is hard, diverse, or realistic. Training data and held splits need at least
+two observed classes for separability to be measurable. A degenerate held split is excluded and
+listed under `unmeasured_splits`; the task is `UNMEASURED` if its training data is degenerate or
+no held split remains measurable.
 
 The lexical generator-fingerprint check measures alphabetic 1-grams, 2-grams, and 3-grams.
 Numeric-only, symbolic, and mixed alphanumeric fingerprints are not measured by that check; the

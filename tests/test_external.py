@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from piicorpus.cli import EXIT_OK, EXIT_OPERATIONAL, main
+from piicorpus.cli import EXIT_OK, EXIT_OPERATIONAL, _parser, main
 from piicorpus.exporters import export_corpus
 from piicorpus.failure_model import audit_external_records
 from piicorpus.importers import ExternalImportError, load_external
@@ -139,6 +139,46 @@ def test_external_safety_scan_flags_sensitive_patterns(tmp_path: Path) -> None:
     assert failed.failed
 
 
+def test_single_kind_external_probe_is_unmeasured(tmp_path: Path) -> None:
+    train = tmp_path / "train.jsonl"
+    evaluation = tmp_path / "eval.jsonl"
+
+    def positive_row(index: int) -> dict[str, object]:
+        value = f"SYN-ID-A{index:05d}"
+        text = f"synthetic identifier {value}"
+        start = text.index(value)
+        return {
+            "text": text,
+            "spans": [
+                {
+                    "start": start,
+                    "end": start + len(value),
+                    "entity_type": "TEST_ID",
+                }
+            ],
+        }
+
+    _write_jsonl(train, [positive_row(index) for index in range(12)])
+    _write_jsonl(evaluation, [positive_row(index) for index in range(12, 16)])
+    records = load_external({"train": train, "eval": evaluation}, "jsonl")
+    report = audit_external_records(records, probe=True)
+    finding = next(
+        item for item in report.findings if item.risk == "probe_kind_separability"
+    )
+    assert finding.status == "UNMEASURED"
+    assert finding.measured is None
+    assert "fewer than two observed classes" in finding.reason
+
+
+def test_external_help_names_the_input_format_explicitly(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        _parser().parse_args(["audit-external", "--help"])
+    assert exit_info.value.code == 0
+    assert "--input-format {jsonl,hf,conll}" in capsys.readouterr().out
+
+
 def test_cli_audit_external_smoke(tmp_path: Path, generated_demo: Path) -> None:
     result = export_corpus(generated_demo, "huggingface", tmp_path / "hf")
     export_dir = Path(result["path"]).parent
@@ -146,7 +186,7 @@ def test_cli_audit_external_smoke(tmp_path: Path, generated_demo: Path) -> None:
         main(
             [
                 "audit-external",
-                "--format",
+                "--input-format",
                 "hf",
                 "--no-probe",
                 "--split",

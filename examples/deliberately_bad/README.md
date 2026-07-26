@@ -9,8 +9,11 @@ piicorpus audit .bad-corpora/value_contamination --format text
 ```
 
 `cases.toml` maps every case to the exact finding that must be `FAIL`. Tests assert the named
-finding directly, so an unrelated validation failure cannot make a case pass.
+finding directly, so an unrelated validation failure cannot make a case pass. The builder writes
+every mutation through the normal corpus writer, regenerating manifest hashes, byte counts, and
+derived counts; tests verify those digests and counts for every case.
 
-Some examples intentionally violate strict integrity checks. Inspect those with
-`--forensic-allow-invalid`; the audit will remain failed and mark the measurements
-non-authoritative.
+`corpus_integrity` covers strict structural and semantic invariants in addition to file signatures.
+Some examples intentionally violate those invariants by definition, such as cross-split
+contamination, malformed spans, or unsafe values. Inspect those with `--forensic-allow-invalid`;
+the audit will remain failed and mark the measurements non-authoritative.

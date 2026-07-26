@@ -109,8 +109,18 @@ def _parser() -> argparse.ArgumentParser:
         "without a PIIcorpus manifest",
     )
     external_parser.add_argument("paths", nargs="*")
-    external_parser.add_argument(
-        "--format", choices=("jsonl", "hf", "conll"), required=True, dest="data_format"
+    input_format_group = external_parser.add_mutually_exclusive_group(required=True)
+    input_format_group.add_argument(
+        "--input-format",
+        choices=("jsonl", "hf", "conll"),
+        dest="data_format",
+        help="format of the external input records",
+    )
+    input_format_group.add_argument(
+        "--format",
+        choices=("jsonl", "hf", "conll"),
+        dest="data_format",
+        help=argparse.SUPPRESS,
     )
     external_parser.add_argument(
         "--split",

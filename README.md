@@ -134,7 +134,9 @@ output are available for automation and review. The full risk catalog is in
 `--probe` additionally trains a deterministic stdlib trivial model (hashed character n-grams and
 logistic regression) and reports balanced accuracy, macro-F1, raw accuracy, and split-specific
 baselines for kind, value-to-label, and context-to-label prediction. A failure requires balanced
-accuracy above both the configured ceiling and the majority-predictor baseline margin.
+accuracy above both the configured ceiling and the majority-predictor baseline margin. A task is
+`UNMEASURED` when its training data or every held split contains fewer than two observed classes,
+because there is then nothing to separate.
 
 > A holdout produced by the same generator is useful for regression testing but is not an
 > independent generalization test.
@@ -146,9 +148,9 @@ shape and marker shortcuts, value diversity, span integrity, and the probe — r
 dataset:
 
 ```console
-piicorpus audit-external --format hf --split train=train.jsonl --split test=test.jsonl
-piicorpus audit-external data.conll --format conll
-piicorpus audit-external records.jsonl --format jsonl   # import output is directly consumable
+piicorpus audit-external --input-format hf --split train=train.jsonl --split test=test.jsonl
+piicorpus audit-external data.conll --input-format conll
+piicorpus audit-external records.jsonl --input-format jsonl  # import output is directly consumable
 ```
 
 Checks that require the generating configuration report `UNMEASURED`, and a sensitive-content

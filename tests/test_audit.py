@@ -15,6 +15,7 @@ from piicorpus.failure_model import (
     audit_corpus,
 )
 from piicorpus.generator import generate
+from piicorpus.manifest import load_json, sha256_file
 from piicorpus.models import Annotation, Finding, Record
 from piicorpus.validators import validate_corpus
 
@@ -170,6 +171,11 @@ def test_every_bad_example_fails_for_its_named_reason(
     expected_risk = builder.case_catalog()[case]
     output = tmp_path / case
     builder.build_bad_corpus(generated_demo, output, case)
+    manifest = load_json(output / "manifest.json")
+    for relative, declared in manifest["files"].items():
+        path = output / relative
+        assert sha256_file(path) == declared["sha256"]
+        assert path.stat().st_size == declared["bytes"]
     report = audit_corpus(
         output,
         allow_invalid=True,
@@ -180,6 +186,13 @@ def test_every_bad_example_fails_for_its_named_reason(
         f"{case} did not trigger its intended risk {expected_risk}; "
         "an unrelated failure cannot satisfy this assertion"
     )
+    integrity = next(item for item in report.findings if item.risk == "corpus_integrity")
+    manifest_error_codes = {"file_hash", "file_size", "manifest_counts"}
+    assert not [
+        error
+        for error in integrity.details["errors"]
+        if error.partition(":")[0] in manifest_error_codes
+    ]
 
 
 def test_multi_entity_cue_shortcut_uses_explicit_links(
@@ -188,7 +201,11 @@ def test_multi_entity_cue_shortcut_uses_explicit_links(
     builder = _builder()
     output = tmp_path / "cue-shortcut"
     builder.build_bad_corpus(generated_demo, output, "cue_shortcut")
-    report = audit_corpus(output, allow_invalid=True)
+    validation = validate_corpus(output, strict=True)
+    assert validation.valid, validation.errors
+    report = audit_corpus(output)
+    integrity = next(item for item in report.findings if item.risk == "corpus_integrity")
+    assert integrity.status == "PASS"
     finding = next(item for item in report.findings if item.risk == "cue_label_shortcuts")
     assert finding.status == "FAIL"
     assert finding.details["fraction"] > 0.9

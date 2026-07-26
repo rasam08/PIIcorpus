@@ -2,7 +2,13 @@
 
 ## Unreleased
 
-No changes yet.
+- Report learnability tasks as `UNMEASURED` when the training data or every held split contains
+  fewer than two observed classes, instead of passing a degenerate single-class result.
+- Added `audit-external --input-format` to distinguish input syntax from audit report rendering;
+  the former `--format` spelling remains as a compatibility alias.
+- Stopped probe training reads from inserting default zero weights.
+- Strengthened deliberately bad examples by verifying that every mutation has regenerated
+  manifest hashes and counts, and made `cue_shortcut` preserve strict corpus validity.
 
 ## 0.2.1 - 2026-07-23
 

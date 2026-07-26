@@ -148,40 +148,18 @@ def build_bad_corpus(clean_directory: Path, output: Path, case: str) -> None:
                     split_rows[index] = _replace_values(record, replacements)
     elif case == "cue_shortcut":
         unique_cues = {label.name: label.cues[-1] for label in config.labels}
-        identifier_labels = [
-            label.name
-            for label in config.labels
-            if label.plugin == "fictional_identifier"
-        ]
-        serial = 10000
-        split_letters = {"train": "A", "eval": "J", "holdout": "S"}
         for split, split_rows in records.items():
             for index, record in enumerate(split_rows):
-                if not record.annotations:
+                if not record.annotations or record.family == "cue_free_examples":
                     continue
-                annotation = record.annotations[0]
-                cue = unique_cues[annotation.entity_type]
-                other_label = next(
-                    label for label in identifier_labels if label != annotation.entity_type
+                cues = tuple(
+                    unique_cues[annotation.entity_type]
+                    for annotation in record.annotations
                 )
-                other_value = f"SYN-ID-{split_letters[split]}{serial:05d}"
-                serial += 1
-                clean, annotations = parse_marked(
-                    f"{cue}: [[{annotation.entity_type}:{annotation.text}]]. "
-                    f"identity value: [[{other_label}:{other_value}]]. "
-                    f"Synthetic document reference SYN-DOC-BAD-{serial:05d}."
-                )
-                split_rows[index] = replace(
+                split_rows[index] = _rebuild_with_cues(
                     record,
-                    text=clean,
-                    annotations=annotations,
-                    cue_links=(
-                        CueLink(cue=cue, entity_type=annotation.entity_type),
-                        CueLink(cue="identity value", entity_type=other_label),
-                    ),
-                    cue_surface=cue,
-                    persona=None,
-                    organization=None,
+                    cues,
+                    reference=f"SYN-DOC-BAD-CUE-{split.upper()}-{index:05d}",
                 )
     elif case == "train_only_cue_shortcut":
         unique_cues = {label.name: label.cues[-1] for label in config.labels}

@@ -57,6 +57,9 @@ are not base dependencies.
 
 ## External input formats (`audit-external`)
 
+Select the input syntax with `--input-format`; `--report-format` independently selects the audit
+report rendering. The older `--format` input alias remains accepted for compatibility.
+
 - `jsonl`: `{"text": ..., "spans": [{"start", "end", "entity_type"}], "split"?: ...}`;
   `annotations` and `label` are accepted as synonyms, and `--byte-offsets` declares byte-based
   span positions. The import command's `records.jsonl` is directly consumable.
