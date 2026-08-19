@@ -267,5 +267,11 @@ Contribution guidance is in [`CONTRIBUTING.md`](CONTRIBUTING.md). Report vulnera
 [GitHub private vulnerability reporting](https://github.com/rasam08/PIIcorpus/security/advisories/new),
 not a public issue.
 
+## AI-assisted development
+
+This project was built with extensive use of AI coding agents. I use AI for implementation, refactoring, tests, documentation, and technical exploration.
+I am responsible for the project's goals, failure model, design decisions, experiments, acceptance criteria, review, and validation. I do not claim hand-authorship of every line of source code.
+Because AI-assisted implementation can introduce subtle errors, the project emphasizes deterministic tests, explicit claim boundaries, reproducibility, and independent validation wherever possible.
+
 Source code is Apache-2.0. Generated demo data is CC0-1.0; see `DATA_LICENSE`. User-supplied and
 external data retains its own terms.
