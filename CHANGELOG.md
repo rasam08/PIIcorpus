@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Revised the README and supporting documentation to use direct technical descriptions of
+  commands, measurements, outputs, and scope.
 - Report learnability tasks as `UNMEASURED` when the training data or every held split contains
   fewer than two observed classes, instead of passing a degenerate single-class result.
 - Added `audit-external --input-format` to distinguish input syntax from audit report rendering;

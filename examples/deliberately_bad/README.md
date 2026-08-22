@@ -1,7 +1,7 @@
-# Deliberately defective examples
+# Audit failure examples
 
-These cases are safe synthetic mutations designed to demonstrate one named audit risk each. They
-are configurations for generating defects, not evaluation evidence. Build them from a fresh demo:
+These cases apply synthetic mutations associated with named audit risks. They are test fixtures,
+not evaluation datasets. Build them from a generated demo corpus:
 
 ```console
 python examples/deliberately_bad/build_examples.py examples/demo/corpus --out .bad-corpora
@@ -14,6 +14,6 @@ every mutation through the normal corpus writer, regenerating manifest hashes, b
 derived counts; tests verify those digests and counts for every case.
 
 `corpus_integrity` covers strict structural and semantic invariants in addition to file signatures.
-Some examples intentionally violate those invariants by definition, such as cross-split
-contamination, malformed spans, or unsafe values. Inspect those with `--forensic-allow-invalid`;
-the audit will remain failed and mark the measurements non-authoritative.
+Cases for cross-split contamination, malformed spans, or unsafe values violate those invariants.
+`--forensic-allow-invalid` continues the audit for diagnostic output while retaining a failed,
+non-authoritative result.

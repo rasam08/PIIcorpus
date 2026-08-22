@@ -37,27 +37,26 @@ Diversity and balance:
 - `value_diversity`: per-label distinct-value floors. Corpus-level distinct-value entropy is
   reported for context only and does not affect the verdict.
 - `value_shared_affix` (WARN): the longest prefix or suffix carried by at least half of a label's
-  values is measured in characters and compared with the configured character ceiling, so a
-  reader knows when a detector could match the affix instead of the value.
+  values is measured in characters and compared with the configured character ceiling. This
+  reports affixes that may be sufficient for a detector rule.
 
 Generator fingerprints:
 
 - Template concentration and kind-predictive lexical markers.
 - `pervasive_phrase_fingerprint`: any skeleton 4-gram (including placeholder tokens) covering an
-  outsized share of all records, which catches constant boilerplate that is balanced across kinds
-  and therefore invisible to kind-marker mining.
+  amount of the corpus above the configured coverage threshold. This detects constant boilerplate
+  that is balanced across kinds and therefore absent from kind-marker results.
 
 Learnability probe (opt-in, `--probe`):
 
 - `probe_kind_separability`, `probe_value_label_shortcut`, and `probe_context_label_shortcut`
   train a deterministic stdlib model (hashed character 3-5-grams, one-vs-rest logistic regression
-  by SGD, fixed seed) on the train split and score the held splits. The structural checks
-  approximate one question — would a trivial model ace this corpus? — and the probe answers it
-  directly. Verdicts use balanced accuracy and require both the configured ceiling and a 0.05
+  by SGD, fixed seed) on the train split and score the held splits. Verdicts use balanced accuracy
+  and require both the configured ceiling and a 0.05
   margin above the split-specific balanced majority-predictor baseline to be exceeded. A failure
   is evidence of learnable surface signal beyond class priors; it does not prove the signal's
-  cause. A task is `UNMEASURED`, rather than passed, when its training data or every held split
-  contains fewer than two observed classes. A passing result does not prove the corpus is hard.
+  cause. A task is `UNMEASURED` when its training data or every held split contains fewer than two
+  observed classes. `PASS` applies only to the implemented probe and configured thresholds.
 
 Safety and spans: malformed spans and unsafe values remain fail-closed checks.
 
@@ -66,25 +65,22 @@ Safety and spans: malformed spans and unsafe values remain fail-closed checks.
 Every threshold-based finding records the measured value, the threshold, and the threshold source
 (`config` or `reference`). The `threshold_strictness` finding compares the corpus configuration
 against the recommended reference profile in `piicorpus.profiles` and warns when any configured
-threshold is weaker, so a clean report cannot silently rely on lenient self-chosen ceilings.
+threshold is weaker. The selected threshold source is included in each threshold-based finding.
 `piicorpus audit --profile reference` runs the checks with the reference profile directly.
 Strictness directions are declared explicitly for similarity, evidence-support, structural, and
 probe thresholds rather than inferred from threshold names.
 
-## A recurring synthetic-corpus failure
+## Interpretation considerations
 
 An early synthetic corpus can make identifier morphology too predictive. A model may then learn a
 shape-to-label mapping instead of using context. Adding shared morphologies can reduce that shortcut
-while moving confusion to a different label boundary. This is why aggregate improvement is not
-enough: per-family, per-label, span, negative, and independently sourced evaluation can disagree.
+while moving confusion to a different label boundary. Aggregate metrics can therefore differ from
+per-family, per-label, span, negative, and independently sourced results.
 
 Repeatedly revising a generator against the same evaluation set contaminates the research loop.
-After multiple unsuccessful candidates, the responsible conclusion may be to stop changing the
-synthetic data and obtain genuinely independent evaluation. A synthetic holdout produced by the
-same engine inherits the engine's distributional fingerprint even when values, personas, and
-templates are disjoint.
-
-This is a methodological warning, not a history of a particular product or experiment.
+Independent evaluation data is required to measure behavior outside that feedback loop. A
+synthetic holdout produced by the same engine retains the engine's distributional fingerprint even
+when values, personas, and templates are disjoint.
 
 ## Status semantics
 

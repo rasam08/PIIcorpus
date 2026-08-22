@@ -5,22 +5,22 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/rasam08/PIIcorpus?display_name=tag&sort=semver)](https://github.com/rasam08/PIIcorpus/releases/latest)
 
-PIIcorpus is a detector-neutral Python tool for generating, auditing, and scoring against
-deterministic synthetic contextual-PII corpora without using real personal data.
+PIIcorpus is a Python package and command-line tool for deterministic synthetic contextual-PII
+corpora. It provides corpus generation, structural validation, failure-mode auditing, format
+export, byte-reproduction checks, and span-prediction scoring. The built-in generators do not use
+real personal data.
 
-Its focus is structural quality, not volume:
+The audit measures cross-split contamination, duplicate and near-duplicate records, template
+concentration, morphology-to-label and shape-to-entity associations, cue associations,
+within-split redundancy, value and context diversity, and generator fingerprints. An optional
+character n-gram logistic-regression probe measures learnable surface signal using class-balanced
+held-split metrics. The config-independent audit checks also accept external NER datasets.
 
-> PIIcorpus does not merely generate synthetic examples. It checks whether its generated splits
-> are structurally independent, exposes common synthetic-corpus failure modes — contamination,
-> template memorization, morphology-to-label and shape-to-entity shortcuts, cue shortcuts,
-> within-split redundancy, insufficient diversity, and generator fingerprints — and tests for
-> learnable surface signal with a class-balanced trivial-model probe. The same audit runs on external
-> NER datasets, and a scoring harness turns detector predictions into mechanism diagnostics.
+PIIcorpus does not train or package machine-learning models. The scoring command evaluates
+submitted span predictions against corpus annotations and reports aggregate and mechanism-specific
+metrics.
 
-The project generates, audits, and scores against corpora. It does not train, evaluate, select,
-approve, or package machine-learning models.
-
-## Pipeline at a glance
+## Processing pipeline
 
 ```mermaid
 flowchart LR
@@ -31,7 +31,7 @@ flowchart LR
     D -->|"invalid"| X["Fail with findings"]
     E --> F["piicorpus export"]
     F --> G["JSONL · BIO · Hugging Face · spaCy · Presidio"]
-    G --> H["your detector"]
+    G --> H["detector under test"]
     H --> I["piicorpus score"]
     C -.-> R["piicorpus reproduce"]
     J["any NER dataset"] --> K["piicorpus audit-external"]
@@ -42,7 +42,7 @@ Generation is deterministic for a fixed package version, normalized configuratio
 byte-comparing. Validation recalculates corpus invariants before audit, export, or scoring
 consumes the files.
 
-## Five-minute quickstart
+## Quick start
 
 Python 3.11 or newer is required.
 
@@ -56,17 +56,17 @@ piicorpus export demo-output --format huggingface
 piicorpus reproduce demo-output
 ```
 
-Two configurations ship with the project:
+Two configurations are included:
 
-- `configs/demo.toml` — the fictional SYN- demo. Labels `PATIENT_RECORD_ID`,
-  `TRAVEL_DOCUMENT_ID`, `DRIVER_CREDENTIAL_ID`, and `BIRTH_DATE` use intentionally fictional
-  identifier shapes with a synthetic prefix. The audit deliberately reports the constant prefix as
-  a `WARN` (`value_shared_affix`) — safe values, visible trade-off.
-- `configs/realistic-safe.toml` — realistic-but-reserved surfaces: RFC 2606 emails, 555-01XX
+- `configs/demo.toml` — a synthetic-prefix configuration. Labels `PATIENT_RECORD_ID`,
+  `TRAVEL_DOCUMENT_ID`, `DRIVER_CREDENTIAL_ID`, and `BIRTH_DATE` use fictional identifier shapes
+  beginning with `SYN-`. The shared affix exceeds the configured threshold, so the audit reports
+  `value_shared_affix` as `WARN`.
+- `configs/realistic-safe.toml` — reserved or invalid identifier surfaces: RFC 2606 emails, 555-01XX
   phone numbers, Luhn-invalid card shapes, RFC 5737 documentation IPs, and never-issued
-  9XX-XX-XXXX national-id shapes. Safety runs in verifier mode (each plugin proves its values are
-  reserved), so detector regexes get realistic shapes with no synthetic prefix and no affix
-  warning. See [`docs/DATA_SAFETY.md`](docs/DATA_SAFETY.md) for the reservation rationale.
+  9XX-XX-XXXX national-id shapes. In verifier mode, each value plugin validates its own
+  reservedness rule. These values do not require a synthetic prefix. See
+  [`docs/DATA_SAFETY.md`](docs/DATA_SAFETY.md) for the validation rules.
 
 The manifest records the seed, generator version, normalized configuration digest, counts, file
 hashes, determinism metadata, and the CC0-1.0 generated-data license.
@@ -86,9 +86,9 @@ demo-output/
 Running the same package version with the same configuration and seed produces byte-identical
 files. A different seed changes generated records while keeping configured sizes, ratios, safety
 rules, and diversity requirements intact. Splits draw personas, organizations, letters, and years
-from shared pools partitioned by interleaving, so they stay disjoint without the obvious
-order-driven shift a contiguous alphabetical or chronological split would create. Arbitrary
-user-supplied pools are not claimed to be statistically identical across splits.
+from shared pools partitioned by interleaving. This keeps pool members disjoint and avoids assigning
+contiguous alphabetical or chronological ranges to individual splits. The partitioning does not
+guarantee identical distributions for arbitrary user-supplied pools.
 
 The repository forces LF line endings for JSON and JSONL files through `.gitattributes`, including
 on Git for Windows checkouts, so checkout conversion does not invalidate corpus byte hashes.
@@ -109,8 +109,8 @@ as a clean corpus verdict (`--traceback` re-raises them for debugging).
 
 Audit, export, and score all run strict validation before consuming a corpus. Tampered records,
 stale content-derived IDs, or inconsistent manifests exit with findings and produce no output by
-default. `--forensic-allow-invalid` is available for investigation, but it is deliberately
-failure-preserving and cannot produce a clean audit.
+default. `--forensic-allow-invalid` continues processing for diagnostic use while preserving the
+failure status; it cannot produce a clean audit.
 
 ## Audit example
 
@@ -131,12 +131,11 @@ whenever the corpus configuration is laxer than the recommended reference profil
 output are available for automation and review. The full risk catalog is in
 [`docs/FAILURE_MODEL.md`](docs/FAILURE_MODEL.md).
 
-`--probe` additionally trains a deterministic stdlib trivial model (hashed character n-grams and
-logistic regression) and reports balanced accuracy, macro-F1, raw accuracy, and split-specific
-baselines for kind, value-to-label, and context-to-label prediction. A failure requires balanced
-accuracy above both the configured ceiling and the majority-predictor baseline margin. A task is
-`UNMEASURED` when its training data or every held split contains fewer than two observed classes,
-because there is then nothing to separate.
+`--probe` trains deterministic one-vs-rest logistic regression on hashed character n-grams. It
+reports balanced accuracy, macro-F1, raw accuracy, and split-specific baselines for kind,
+value-to-label, and context-to-label prediction. A failure requires balanced accuracy above both
+the configured ceiling and the majority-predictor baseline margin. A task is `UNMEASURED` when
+its training data or every held split contains fewer than two observed classes.
 
 > A holdout produced by the same generator is useful for regression testing but is not an
 > independent generalization test.
@@ -174,9 +173,9 @@ diagnostics:
   over_trigger_per_hard_negative_family {'hard_negative_near_misses': 1.0, ...}
 ```
 
-A shape-only regex detector will over-trigger on near-miss hard negatives — which now carry
-identifier-shaped values precisely so that this failure is measurable. Scores on synthetic data
-demonstrate mechanism failures, never real-world adequacy; see
+A detector that classifies entities only from value-shape regular expressions can over-trigger on
+near-miss hard negatives because those records contain non-entity values with the same shapes as
+positive annotations. These diagnostics apply to the supplied corpus and predictions; see
 [`docs/CLAIM_BOUNDARIES.md`](docs/CLAIM_BOUNDARIES.md).
 
 ## Families and extension points
@@ -208,7 +207,7 @@ The record identifier is [[PATIENT_RECORD_ID:SYN-ID-A10427]].
 ```
 
 The parser emits clean text, Unicode code-point offsets, and UTF-8 byte offsets. Nested, unclosed,
-malformed, or overlapping annotations fail loudly. Exporters are provided for generic JSONL, BIO,
+malformed, or overlapping annotations are rejected. Exporters are provided for generic JSONL, BIO,
 Hugging Face-compatible per-split JSONL, a spaCy-convertible JSONL form, and Presidio fixtures;
 every export includes a `labels.json` tag map. Details are in [`docs/FORMAT.md`](docs/FORMAT.md).
 
@@ -236,17 +235,19 @@ The base installation has no third-party runtime dependency.
 
 ## Limitations
 
-- Synthetic data does not prove real-world accuracy.
-- A same-generator holdout is not independent.
-- Diversity counts do not prove semantic diversity.
-- Template variation can still leave a generator fingerprint.
-- PIIcorpus does not guarantee that generated identifiers are realistic; the realistic-safe
-  plugins guarantee only that realistic shapes are reserved, fictional, or invalid by design.
-- PIIcorpus does not guarantee regulatory compliance.
-- PIIcorpus does not de-identify real data.
-- PIIcorpus does not make a model ready for deployment.
-- Human-authored or externally sourced evaluation remains necessary.
-- The project generates, audits, and scores against corpora; it does not train or approve models.
+- Audit and score results apply to the supplied files, implemented measurements, and configured
+  thresholds; they are not estimates of performance on external data.
+- A holdout produced by the same generator is not an independent evaluation set.
+- Diversity counts and template counts measure distinct stored values and structures, not semantic
+  coverage.
+- PIIcorpus does not guarantee that generated identifiers are representative of production data;
+  the reserved-surface plugins validate only that their values are reserved, fictional, or invalid
+  under their configured rules.
+- Regulatory compliance, de-identification, and deployment-readiness assessment are outside the
+  package scope.
+- External-performance measurement requires independently sourced evaluation data.
+- The package generates, audits, exports, and scores corpus data; it does not train or approve
+  models.
 
 See [`docs/CLAIM_BOUNDARIES.md`](docs/CLAIM_BOUNDARIES.md) for the full boundary.
 
@@ -269,9 +270,13 @@ not a public issue.
 
 ## AI-assisted development
 
-This project was built with extensive use of AI coding agents. I use AI for implementation, refactoring, tests, documentation, and technical exploration.
-I am responsible for the project's goals, failure model, design decisions, experiments, acceptance criteria, review, and validation. I do not claim hand-authorship of every line of source code.
-Because AI-assisted implementation can introduce subtle errors, the project emphasizes deterministic tests, explicit claim boundaries, reproducibility, and independent validation wherever possible.
+Development uses AI coding agents for implementation, refactoring, tests, documentation, and
+technical analysis. Project decisions, acceptance criteria, review, and validation remain under
+human control; the repository does not claim manual authorship of every source line.
+
+Deterministic tests, explicit claim boundaries, byte-reproduction checks, and independent
+validation are used to detect implementation errors, including errors introduced by AI-assisted
+changes.
 
 ## License
 

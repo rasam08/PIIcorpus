@@ -16,18 +16,16 @@ Safety checks additionally reject credential-shaped strings, private-key markers
 email domains, non-reserved URL hosts, and configured prohibited terms in all record text.
 Example internet names must use RFC 2606 reserved domains.
 
-## Reservedness rationale for the realistic plugins
+## Reservedness rules for the realistic plugins
 
-Each realistic-but-reserved plugin ships a verifier proving that its values cannot collide with
-issued real-world identifiers:
+Each reserved-surface plugin includes a verifier for its value constraints:
 
 - `reserved_email` — hosts are RFC 2606 reserved documentation domains
   (`example.com`, `example.org`, `example.net`), which can never be registered.
 - `reserved_phone_nanp` — numbers use the `555-01XX` exchange range, reserved for fictional use in
   the North American Numbering Plan.
-- `card_shaped_invalid` — 16-digit card-shaped numbers whose Luhn check digit is deliberately
-  wrong; a Luhn-invalid number cannot be a valid primary account number. The verifier asserts the
-  invalidity, so an accidental valid number is rejected.
+- `card_shaped_invalid` — 16-digit card-shaped numbers that fail the Luhn checksum. The verifier
+  rejects any generated value that passes the checksum.
 - `documentation_ip` — addresses fall inside the RFC 5737 IPv4 documentation ranges
   (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`) or the RFC 3849 IPv6 documentation prefix
   (`2001:db8::/32`), which are never routed.
@@ -45,11 +43,11 @@ The base project does not download data or machine-learning artifacts.
 The safety validator cannot establish consent, provenance, ownership, or release permission for
 user-supplied text. Import records remain unreviewed and are not placed in generated splits; the
 importer and `audit-external` run the sensitive-content scan informationally and report findings
-without making the data releasable. The user is responsible for privacy, licensing, and release
-decisions.
+without establishing release suitability. Privacy, licensing, and release review remain external
+to the importer.
 
 ## Residual risk
 
 Pattern checks and verifiers can miss unsafe content and can flag harmless content. Synthetic
-values may coincidentally resemble an external convention. Reviewers should inspect generation
-rules and use independent secret scanning before distribution.
+values may coincidentally resemble an external convention. Generation-rule review and independent
+secret scanning provide additional checks before distribution.

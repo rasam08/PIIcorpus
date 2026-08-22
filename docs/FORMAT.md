@@ -46,14 +46,14 @@ rejected, as is text that cannot carry UTF-8 byte offsets (lone surrogates).
 - `spacy`: JSONL objects with `[start, end, label]` entities; convertible without importing spaCy.
 - `presidio`: fixture objects with expected entity type, text, start, and end.
 
-Every export also writes `labels.json` containing the sorted label list and the full BIO tag list,
-which training pipelines need and should not have to reconstruct.
+Every export also writes `labels.json` containing the sorted label list and the full BIO tag list
+for direct use by downstream pipelines.
 
 An exporter runs strict corpus validation before creating output, then fails if tokenization would
 cut through an entity or if any source span does not round trip. Audit follows the same fail-closed
-integrity rule. The deliberately loud `--forensic-allow-invalid` override permits investigation,
-but the command still exits with findings and labels its output non-authoritative. Heavy frameworks
-are not base dependencies.
+integrity rule. `--forensic-allow-invalid` permits diagnostic processing of invalid input; the
+command retains a findings exit status and marks its output non-authoritative. Heavy frameworks are
+not base dependencies.
 
 ## External input formats (`audit-external`)
 
